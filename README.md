@@ -127,6 +127,25 @@ Four groups of checks:
 
 Last run: **32 passed, 0 failed**.
 
+### Real-browser test (stronger, optional)
+
+```bash
+npm i puppeteer-core @sparticuz/chromium    # or point $BROWSER_PATH at a Chrome
+node tools/browser-test.mjs
+```
+
+`tools/browser-test.mjs` drives an actual Chromium with a request watcher and
+proves the two things a static scan cannot:
+
+- the launcher, opened straight off disk with **no server running**, renders,
+  answers every tab/row click, and issues **zero** requests that leave the
+  machine;
+- each of the five bundled games loads from `file://` with **no server**, makes
+  **zero** network requests, and reaches its rendered boot screen.
+
+Last run: **23 passed, 0 failed**, and every build produced a screenshot of its
+actual rendered output.
+
 ---
 
 ## Repository layout
