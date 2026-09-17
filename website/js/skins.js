@@ -24,8 +24,17 @@
  * Missing preview? Not a problem: the download card draws the front of the
  * character from the skin file itself, so a bare <name>.png still shows up.
  *
- * (The "Add skin folder" button on the Skins page loads folders straight off
- * disk for the session as well, for trying a skin out before committing it.)
+ * Two other ways in, both for the case where index.html is opened by
+ * double-clicking and no server is running:
+ *
+ *   - "Add skin folder" on the Skins page puts a folder on the page for that
+ *     session, without writing anything;
+ *   - `python3 website/tools/bake-skins.py` writes the folder listing into
+ *     website/skins/list.js once, so dropped folders show up off disk too.
+ *
+ * When the launcher IS served (start-offline.*), none of that is needed: the
+ * server hands the page the live folder listing and this file only decides the
+ * order.
  */
 
 window.AMPLER_SKINS = [

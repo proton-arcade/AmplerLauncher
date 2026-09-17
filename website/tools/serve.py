@@ -60,6 +60,7 @@ ROOT = _find_root()
 # page with no editing anywhere. Remove the folder and it is gone again.
 SKINS_DIR = os.path.join(ROOT, "website", "skins")
 SKINS_LIST_PATH = "/website/skins/list.js"
+SKINS_LIST_FILE = os.path.join(SKINS_DIR, "list.js")
 SKIN_IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".gif")
 
 

@@ -31,7 +31,7 @@
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { join, dirname, relative, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawn } from 'node:child_process';
+import { spawn, execSync } from 'node:child_process';
 
 // The repo root is the directory that holds index.html + README.md (everything
 // else lives under website/, so this file may be nested).
@@ -306,6 +306,34 @@ if (SKINS.length === 0) {
     if (skinProblems === 0)
         ok('every skin has its folder, its <name>.png and its ' + SKIN_PREFIX + '<name>.png');
 
+    // website/skins/list.js is either the empty placeholder (the committed
+    // default) or a baked listing from tools/bake-skins.py. Both are valid, but
+    // it has to be loadable JavaScript either way.
+    const listJsPath = join(SKIN_FOLDER, 'list.js');
+    if (!existsSync(listJsPath)) {
+        bad('website/skins/list.js is missing - the page loads it on every boot');
+    } else {
+        const listSrc = readFileSync(listJsPath, 'utf8');
+        const lctx = { window: {} };
+        let listError = null;
+        try { new Function('window', listSrc)(lctx.window); } catch (e) { listError = e; }
+        const baked = lctx.window.AMPLER_SKINS_FROM_DIR;
+        if (listError) bad('website/skins/list.js does not parse: ' + listError.message);
+        else if (!Array.isArray(baked)) bad('website/skins/list.js does not define AMPLER_SKINS_FROM_DIR');
+        else {
+            const badNames = baked.filter((n) => typeof n !== 'string' || /[\\/]/.test(n) || n.includes('..'));
+            if (badNames.length) bad('odd names in website/skins/list.js: ' + badNames.join(', '));
+            const stale = baked.filter((n) => !foldersOnDisk.includes(n));
+            if (baked.length === 0)
+                ok('website/skins/list.js is the empty placeholder (page goes by js/skins.js)');
+            else if (stale.length === 0)
+                ok('website/skins/list.js is baked and matches the folders on disk (' + baked.join(', ') + ')');
+            else
+                skipped('website/skins/list.js lists folders that are gone (' + stale.join(', ') +
+                        ') - their cards drop out on their own; re-run tools/bake-skins.py to tidy up');
+        }
+    }
+
     // Folders that are on disk but not in the list still show up whenever the
     // launcher is served by tools/serve.py (it answers website/skins/list.js
     // from the directory listing). Off disk and on plain static servers the
@@ -564,6 +592,21 @@ if (!pythonAvailable()) {
                 : bad('served skins listing ' + JSON.stringify(got) + ' != folders on disk ' + JSON.stringify(want));
         } catch (e) {
             bad('skins listing request failed: ' + e.message);
+        }
+
+        // tools/bake-skins.py must produce exactly what the server generates,
+        // or the two ways of listing the same folder would drift apart.
+        try {
+            const dry = execSync('python3 ' + join(ROOT, 'website', 'tools', 'bake-skins.py') + ' --dry-run',
+                { cwd: ROOT }).toString();
+            const served = await (await fetch(base + 'website/skins/list.js')).text();
+            dry.trim() === served.trim()
+                ? ok('bake-skins.py agrees with serve.py on the folder listing')
+                : bad('bake-skins.py output differs from the served listing:\n' +
+                      '    baked : ' + dry.trim().split('\n').pop() + '\n' +
+                      '    served: ' + served.trim().split('\n').pop());
+        } catch (e) {
+            bad('bake-skins.py --dry-run failed: ' + e.message);
         }
     }
 

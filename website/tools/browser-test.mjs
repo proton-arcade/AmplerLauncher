@@ -26,6 +26,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, mkdirSync, copyFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 
@@ -293,6 +294,46 @@ async function driveLauncher(label, url) {
                 ? ok('deleting the folder removes the skin again (' + gone + ' back)')
                 : bad('after deleting the folder the grid shows ' + gone + ' cards');
         }
+    }
+
+    /* ---- "Add skin folder": a real folder handed to the real picker ---- */
+    const pickDir = join(tmpdir(), 'ampler-picker-test');
+    rmSync(pickDir, { recursive: true, force: true });
+    mkdirSync(join(pickDir, 'pick skin'), { recursive: true });
+    copyFileSync(join(ROOT, 'website', 'skins', 'creeper', 'creeper.png'),
+                 join(pickDir, 'pick skin', 'pick skin.png'));
+    try {
+        const [chooser] = await Promise.all([
+            page.waitForFileChooser({ timeout: 10000 }),
+            page.click('#addfolder'),
+        ]);
+        await chooser.accept([join(pickDir, 'pick skin')]);
+        await new Promise((r) => setTimeout(r, 1200));
+        const picked = await page.evaluate(() => {
+            const card = document.querySelector('#skingrid .skinCard[data-skin-name="pick skin"]');
+            if (!card) return null;
+            return {
+                name: card.querySelector('.skinName').textContent,
+                preview: !!card.querySelector('img') || !!card.querySelector('canvas'),
+                download: card.querySelector('.skinDownload').getAttribute('title'),
+                toast: document.querySelector('#naerror-text').textContent,
+            };
+        });
+        picked && picked.preview
+            ? ok('"Add skin folder" loads a folder picked off disk (' + picked.name + ', preview drawn)')
+            : bad('the picked folder did not appear on the page: ' + JSON.stringify(picked));
+        // it is a session skin: reloading must drop it again (nothing written)
+        await page.reload({ waitUntil: 'load' });
+        await page.click('#header2');
+        await new Promise((r) => setTimeout(r, 800));
+        const stillThere = await page.$('#skingrid .skinCard[data-skin-name="pick skin"]');
+        stillThere === null
+            ? ok('the picked folder is session-only: a reload leaves the repo untouched')
+            : bad('a session skin survived a reload - did something write to disk?');
+    } catch (e) {
+        bad('the folder picker check failed: ' + e.message);
+    } finally {
+        rmSync(pickDir, { recursive: true, force: true });
     }
 
     if (process.env.SHOTS) {

@@ -69,26 +69,33 @@ which is what `start-offline.*` runs: the server answers
 `website/skins/list.js` straight from the directory listing, so the page always
 shows exactly the folders that are on disk.
 
-Opening `index.html` by double-clicking cannot work that way — a browser is not
-allowed to list a folder off your disk — so off disk the page goes by
-`website/js/skins.js`:
+Opening `index.html` by double-clicking cannot read a directory listing — no
+browser may, that is not a launcher limitation — so off disk you have three
+ways to get a new skin onto the page, none of them more than one step:
+
+1. **`Add skin folder`** on the Skins page. Pick the folder; it is on the page
+   for that session, nothing written, nothing to undo.
+2. **`python3 website/tools/bake-skins.py`** — writes the folder list into
+   `website/skins/list.js` once, so the folder shows up on every load from then
+   on. Run it again after adding or removing a folder.
+3. **One line** in `website/js/skins.js`, which is also the file that decides
+   the order off disk:
 
 ```js
 window.AMPLER_SKINS = [
     { name: 'skin template' },
     { name: 'creeper' },
-    { name: 'my skin' }        // <- the folder to show when served from disk
+    { name: 'my skin' }        // <- the folder to show when opened off disk
 ];
 ```
 
-Only that list decides the **order** when served; a folder missing from it
-still shows up (at the end), and a folder listed but deleted is simply skipped.
+When served, that list only decides the **order** — a folder missing from it
+still shows up (at the end). Either way, a folder that has been deleted is
+simply skipped instead of leaving a dead box.
 
 - **No preview file?** Not a problem — the card draws the front of the
   character from the skin file itself (classic 64×64 and HD skins both work),
   so a bare `<name>.png` still shows up.
-- **Trying one out?** The `Add skin folder` button on the Skins page loads
-  folders straight off your disk for the session, without touching the repo.
 
 ## What is included
 
@@ -117,7 +124,7 @@ website/                everything else
   mc/                   the five game builds
   skins/                one folder per skin (see above)
   server/               optional local multiplayer server
-  tools/                serve.py + the offline checks
+  tools/                serve.py, bake-skins.py + the offline checks
   start-offline.*       optional one-click launchers
 ```
 
@@ -130,8 +137,8 @@ node website/tools/browser-test.mjs       # real-browser, no-server check
 
 `verify-offline.mjs` proves that nothing reaches the network, that every
 reference resolves, that the client and skin lists agree with what is on disk
-(including that the served skins listing really is the folder listing), and
-that the launcher renders and behaves. `browser-test.mjs` drives Chromium
+(including that the served skins listing really is the folder listing, and that
+a baked `skins/list.js` is valid), and that the launcher renders and behaves. `browser-test.mjs` drives Chromium
 against the real page, off disk and over http://, and can boot the five game
 builds (`--no-games` skips that).
 
