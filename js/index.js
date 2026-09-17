@@ -11,7 +11,12 @@
  *  - the Discord button opens in a new tab rather than navigating the launcher
  *    away, so a dead link offline costs you nothing.
  *
- * Runs from http://localhost (recommended) and degrades gracefully from file://.
+ * The bundled builds are the official Eaglercraft "offline download" single
+ * files, which are built to be opened directly - so double-clicking index.html
+ * is a first-class way to run this, not a fallback. tools/serve.py stays
+ * around only for the cases where a plain http:// origin genuinely helps
+ * (SharedArrayBuffer for the WASM builds, or serving to another device on the
+ * LAN). See README.md.
  */
 
 var SVG_DOWN = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dropdownIcon"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 9l6 6l6 -6" /></svg>';
@@ -44,11 +49,16 @@ function clientById(id) {
     })[0] || null;
 }
 
+// Settings persistence. On a file:// origin the browser treats the page as an
+// opaque origin and window.localStorage throws SecurityError, so this silently
+// degrades: the launcher still works, it just will not remember your last
+// selection between sessions. Game worlds are unaffected - those are handled
+// by the game build itself, not by the launcher.
 function loadStore() {
     try {
         var raw = window.localStorage.getItem(STORE_KEY);
         if (raw) return JSON.parse(raw);
-    } catch (e) { /* private mode / file:// with storage disabled */ }
+    } catch (e) { /* opaque origin / private mode / storage disabled */ }
     return {};
 }
 
@@ -234,10 +244,11 @@ function showCredits() {
 
 function showOfflineStatus() {
     var bundled = clientsIn('web').filter(function (c) { return c.bundled; });
-    var protocol = window.location.protocol === 'file:' ? 'file:// (limited)' : window.location.origin;
+    var onDisk = window.location.protocol === 'file:';
+    var origin = onDisk ? 'file:// (opened straight off disk)' : window.location.origin;
     toast('OFFLINE STATUS',
-        bundled.length + ' of ' + (window.AMPLER_CLIENTS || []).length + ' clients bundled. Serving from ' + protocol +
-        '. No external requests are made by this page.',
+        bundled.length + ' of ' + (window.AMPLER_CLIENTS || []).length + ' clients bundled. Running from ' + origin +
+        '. No server and no internet required. Optional: ./start-offline.sh if a build misbehaves.',
         '#7CFC98');
 }
 
@@ -252,10 +263,6 @@ function preventMotion(event) {
 }
 
 function init() {
-    if (window.location.protocol === 'file:') {
-        el('filewarning').style.display = 'block';
-    }
-
     el('dropdownuparrow').innerHTML = SVG_DOWN;
 
     var saved = loadStore();
@@ -273,10 +280,14 @@ function init() {
 window.addEventListener('scroll', preventMotion, false);
 window.addEventListener('touchmove', preventMotion, { passive: false });
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-} else {
+// This file is the last element in <body>, so every node init() touches has
+// already been parsed. Initialise immediately instead of queueing on
+// DOMContentLoaded - that keeps boot deterministic, including when the page is
+// opened straight off disk where readyState can still read "loading".
+if (document.getElementById('dropdn')) {
     init();
+} else {
+    document.addEventListener('DOMContentLoaded', init);
 }
 
 console.clear();

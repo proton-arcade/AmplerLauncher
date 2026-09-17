@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
 """
-Ampler Launcher - zero-dependency local server.
+Ampler Launcher - OPTIONAL local server.
 
-Why this exists
----------------
-Double-clicking index.html gives you a file:// URL. Browsers deny IndexedDB,
-Web Workers and fetch() on file://, so Eaglercraft cannot save worlds and some
-builds refuse to start at all. Serving the same folder over http://localhost
-fixes all of it, and it is still completely offline - nothing leaves the
-machine.
+You do not need this to play. The bundled builds are the official Eaglercraft
+"offline download" single files and are built to be opened directly, so
+double-clicking index.html is the normal way to run the launcher. Nothing here
+is a prerequisite.
 
-This also sends the cross-origin isolation headers:
+Two cases where serving over http:// genuinely helps:
 
-    Cross-Origin-Opener-Policy:   same-origin
-    Cross-Origin-Embedder-Policy: require-corp
+  1. SharedArrayBuffer. These headers
 
-which are the only way a page can get SharedArrayBuffer. The WASM-GC builds use
-it when it is available, so without these headers they silently fall back to a
-slower path (or fail outright). Every asset here is same-origin, so
-require-corp is safe to enable.
+         Cross-Origin-Opener-Policy:   same-origin
+         Cross-Origin-Embedder-Policy: require-corp
+
+     are the only way a page can get SharedArrayBuffer, which the WASM-GC
+     builds use when available. Every asset here is same-origin, so
+     require-corp is safe to enable.
+
+  2. Playing from another device on your LAN.
+
+Still fully offline either way - nothing leaves the machine.
 
 Usage
 -----

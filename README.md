@@ -11,25 +11,35 @@ v2.0.00-offline
 
 ## Quick start
 
-**Windows** — double-click `start-offline.bat`
-**macOS** — double-click `start-offline.command`
-**Linux / macOS terminal:**
+**Just open `index.html`.** Double-click it, or drag it into a browser.
+
+Pick a version, press Play. That is the whole thing — no server, no install,
+no internet connection, no build step.
+
+The five bundled builds are the official Eaglercraft *offline download* single
+files. Each is one self-contained HTML document with its assets inlined, and
+they are built to be opened directly off disk — which is what makes them the
+right thing to ship for this.
+
+### Optional: the local server
+
+`tools/serve.py` is still here, but it is **not required to play**. Run it only
+if you want one of two things:
 
 ```bash
-./start-offline.sh
+./start-offline.sh       # or start-offline.bat / start-offline.command
 ```
 
-Your browser opens <http://localhost:8080/>. Pick a version, press Play.
+- **`SharedArrayBuffer` for the WASM builds.** It sends the
+  `Cross-Origin-Opener-Policy` / `Cross-Origin-Embedder-Policy` headers, which
+  are the only way a page gets `SharedArrayBuffer`. Those two builds run
+  without it; with it they can take a faster path.
+- **Playing from another device on your LAN.**
 
-That is the whole thing. Nothing is downloaded, nothing phones home, and it
-keeps working with the network cable unplugged.
-
-> **Why not just double-click `index.html`?**
-> You can, and the launcher itself will render. But browsers deny IndexedDB,
-> Web Workers and `fetch()` on `file://`, so Eaglercraft cannot save worlds and
-> some builds will not boot. The launcher detects this and shows a warning.
-> The tiny server in `tools/serve.py` is what makes `http://localhost` work,
-> and it binds to your own machine only.
+One real difference when running off disk: browsers treat a `file://` page as
+an *opaque origin* and refuse `localStorage`, so the launcher will not remember
+your last-selected version between sessions. Everything else works, and game
+worlds are saved by the game build itself, not by the launcher.
 
 ---
 
@@ -104,13 +114,18 @@ Four groups of checks:
 3. **The launcher works** — `index.html` is loaded in jsdom with
    `js/clients.js` and `js/index.js` executed against it. Every sidebar tab is
    selected, all 13 dropdown rows are clicked, and each resulting Play button
-   href must resolve to a real file.
+   href must resolve to a real file. The same page is then booted a second time
+   from a `file:///.../index.html` URL to prove the no-server path: it must boot
+   without throwing and still build the dropdown. A regression check also
+   asserts none of the five builds carry the `startsWith("file:")` launch gate
+   the old folder-based `mc/1.5.2` had, with a canary proving the detector would
+   catch it.
 4. **It serves** — `tools/serve.py` is booted and every page is requested over
    HTTP, asserting `200` plus the `Cross-Origin-Opener-Policy` /
    `Cross-Origin-Embedder-Policy` headers the WASM builds need for
    `SharedArrayBuffer`.
 
-Last run: **26 passed, 0 failed**.
+Last run: **32 passed, 0 failed**.
 
 ---
 
@@ -125,9 +140,9 @@ js/index.js           launcher behaviour
 images/               launcher artwork
 mc/<version>/         the five offline game builds
 server/               EaglerXServer for local multiplayer
-tools/serve.py        local static server with isolation headers
+tools/serve.py        OPTIONAL local server (SharedArrayBuffer / LAN)
 tools/verify-offline.mjs   the offline guarantee test
-start-offline.*       one-click launchers
+start-offline.*       optional one-click launchers for the above
 ```
 
 ---

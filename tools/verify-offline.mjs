@@ -208,8 +208,22 @@ if (!Array.isArray(CLIENTS) || CLIENTS.length === 0) {
 
     // Each bundled build must be self-contained too.
     let dirty = 0;
+    // Regression guard: the OLD folder-based mc/1.5.2 build opened with
+    //   if(document.location.href.startsWith("file:")) { alert("You cannot
+    //   'open' this file in your browser...") }
+    // which made a local server mandatory. The single-file offline downloads
+    // must not carry that gate, or double-clicking them stops working.
+    const FILE_GUARDS = [
+        'startsWith("file:',
+        "startsWith('file:",
+        "cannot 'open' this file",
+        'cannot "open" this file',
+    ];
     for (const c of bundled) {
         const text = readFileSync(join(ROOT, c.path), 'utf8');
+        for (const g of FILE_GUARDS) {
+            if (text.includes(g)) bad('game build ' + c.path + ' blocks file:// via: ' + g);
+        }
         for (const rx of FETCHERS) {
             rx.lastIndex = 0;
             let m;
@@ -224,6 +238,16 @@ if (!Array.isArray(CLIENTS) || CLIENTS.length === 0) {
         if (bytes < 1_000_000) bad('game build ' + c.path + ' is suspiciously small (' + bytes + ' B)');
     }
     if (dirty === 0) ok('all ' + bundled.length + ' game builds are self-contained (0 remote refs)');
+
+    // Prove the guard detector is not vacuous.
+    {
+        const OLD_BUILD = 'if(document.location.href.startsWith("file:")){' +
+                          'alert("You cannot \'open\' this file in your browser");}';
+        if (FILE_GUARDS.some((g) => OLD_BUILD.includes(g)))
+            ok('file:// guard detector is live: catches the old folder-build gate');
+        else
+            bad('file:// guard detector would miss the old gate - the check is vacuous');
+    }
 
     /* ---- jsdom: actually run the launcher ---- */
     let JSDOM = null;
@@ -290,6 +314,33 @@ if (!Array.isArray(CLIENTS) || CLIENTS.length === 0) {
             .map((l) => l.getAttribute('href'))
             .filter((h) => /^https?:/i.test(h));
         assert(remoteLinks.length === 0, 'index.html <head> has 0 remote stylesheets');
+
+        /* ---- the no-server path: boot from a file:// URL ---- */
+        const fileDom = new JSDOM(html, {
+            runScripts: 'outside-only',
+            url: 'file:///home/someone/AmplerLauncher/index.html',
+        });
+        const fwin = fileDom.window;
+        fwin.open = () => null;
+        fwin.console.clear = () => {};
+        let bootError = null;
+        try {
+            fwin.eval(readFileSync(join(ROOT, 'js/clients.js'), 'utf8'));
+            fwin.eval(readFileSync(join(ROOT, 'js/index.js'), 'utf8'));
+        } catch (e) { bootError = e; }
+        const fd = fwin.document;
+
+        assert(bootError === null,
+            'boots from file:// with no exception' + (bootError ? ': ' + bootError.message : ''));
+        assert(fd.querySelectorAll('#dropdn .dropdownOptions').length ===
+               CLIENTS.filter((c) => c.category === 'web').length,
+            'file:// boot still builds the version dropdown');
+        assert(existsSync(join(ROOT, fd.getElementById('playbutton').getAttribute('href'))),
+            'file:// boot Play button resolves on disk');
+        assert(!fd.getElementById('filewarning'),
+            'no stale file:// warning element left in the markup');
+        assert(!readFileSync(join(ROOT, 'js/index.js'), 'utf8').includes('filewarning'),
+            'js/index.js no longer references a file:// warning gate');
     }
 }
 
