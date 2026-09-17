@@ -1,0 +1,36 @@
+/*
+ * Self-hosted Roboto.
+ *
+ * This file replaces the three remote tags that used to sit in index.html:
+ * two preconnect hints and one Google Fonts CSS request for the Roboto family.
+ * Those were the launcher's only outbound network fetches.
+ *
+ * The woff2 files in ../fonts/ are the latin subset published by the
+ * @fontsource/roboto package (OFL-licensed), vendored into this repo so the
+ * launcher renders identically with the network unplugged.
+ */
+
+@font-face {
+    font-family: 'Roboto';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('../fonts/roboto-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Roboto';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('../fonts/roboto-latin-700-normal.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Roboto';
+    font-style: normal;
+    font-weight: 800;
+    font-display: swap;
+    /* No 800 cut is shipped; .bolded uses 800, so alias it to the 700 face. */
+    src: url('../fonts/roboto-latin-700-normal.woff2') format('woff2');
+}

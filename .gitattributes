@@ -1,0 +1,30 @@
+# ---------------------------------------------------------------------------
+# ATTRIBUTE ORDER MATTERS: for any given attribute, the LAST matching pattern
+# wins. The broad text rules therefore come first, and the mc/** binary rule
+# comes last so nothing can override it.
+#
+# Getting this wrong silently destroys the bundled game builds: mc/*/index.html
+# are 15-31 MB single-file Eaglercraft builds whose payload is a base64/binary
+# blob that legitimately contains CRLF byte pairs. Normalising them to LF
+# corrupts the archive and the game fails to boot, with no warning at runtime.
+# ---------------------------------------------------------------------------
+
+# Ordinary text first.
+*.html text eol=lf
+*.css  text eol=lf
+*.js   text eol=lf
+*.mjs  text eol=lf
+*.py   text eol=lf
+*.md   text eol=lf
+*.sh   text eol=lf
+*.bat  text eol=crlf
+
+# Binary assets.
+website/fonts/*.woff2 binary
+website/server/*.zip binary
+website/images/*.png binary
+website/images/*.jpg binary
+
+# LAST, so it wins: the bundled game builds are opaque binaries. No diff, no
+# line-ending conversion, no text detection.
+website/mc/** -text -diff

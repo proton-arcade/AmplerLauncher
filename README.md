@@ -1,41 +1,63 @@
-# <img src=".github/assets/logo.png" alt="Ampler Logo" align="right" width="175px"> Ampler Launcher v1.2.00
- A minecraft themed launcher for Eaglercraft!<br>
- Containing some of the best clients all in one place!
+# Ampler Launcher
 
+A Minecraft-themed launcher for Eaglercraft that runs entirely offline.
 
-<img src=".github/assets/launcher.png" alt="Launcher Photo"><br>
+It is a **website**, not an app: plain HTML/CSS/JS with no build step, no
+backend and no installer. Open it in a browser and it works — online or off.
 
-<hr>
+## Run it
 
- ## Versions
- __v1.2.00__ - Updated games.<br>
- __v1.1.00__ - Updated code and optimized!<br>
- __v1.0.00__ - Main code with future updates planned!
+Open `index.html` in any browser. Pick a version, press Play.
 
- <hr>
+That is all. Nothing is downloaded and nothing phones home.
 
-## Installation
- Currently just download the repository for the source code!<br>
- Future plans for an offline file may be possible!
+Optionally, run the small local server if you want `SharedArrayBuffer` for the
+WASM builds or to play from another device on your LAN:
 
-<hr>
+```
+./website/start-offline.sh      # or start-offline.bat / .command
+```
 
-## Features Planned
+then use `http://localhost:8080/`.
 
-<details>
-<summary>Click here to expand feature list</summary>
+## What is included
 
-- [ ] Add Credits screen
-- [ ] Add Settings screen
-- [x] Rewrite some of the css and js
-- [ ] Organize code, and add comments
-- [ ] Add a customizable launcher selector
-- [ ] Add the servers screen
-- [ ] Fix display errors
-- [ ] Offline launcher download?
-- [ ] Implement top bar options
-</details>
+Five self-contained Eaglercraft builds (one HTML file each) under
+`website/mc/`:
 
-<hr>
+| Version | Folder |
+|---|---|
+| 1.12.2-u3 | `website/mc/1.12.2/` |
+| 1.12.2-u3 WASM | `website/mc/1.12.2-wasm/` |
+| 1.8.8-u53 | `website/mc/1.8.8/` |
+| 1.8.8-u53 WASM-GC | `website/mc/1.8.8-wasm/` |
+| 1.5.2-sp2.01 | `website/mc/1.5.2/` |
 
->__Finally [here](https://irv77.github.io/AmplerLauncher/) is the live version of the code!__
+Singleplayer works with no server. For offline multiplayer, `website/server/`
+holds EaglerXServer v1.1.1 (see `website/server/README.md`).
+
+## Layout
+
+```
+index.html              launcher page
+README.md               this file
+website/                everything else
+  css/ fonts/ images/   launcher assets (font is self-hosted)
+  js/                   launcher code + client list
+  mc/                   the five game builds
+  server/               optional local multiplayer server
+  tools/                serve.py + the offline checks
+  start-offline.*       optional one-click launchers
+```
+
+## Verify
+
+```
+node website/tools/verify-offline.mjs     # static offline checks
+node website/tools/browser-test.mjs       # real-browser, no-server check
+```
+
+## Credits
+
+Eaglercraft and EaglerXServer by lax1dude and contributors. Launcher UI by
+irv77. Roboto (SIL OFL) via @fontsource.
