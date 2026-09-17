@@ -44,7 +44,8 @@ version selector.
 
 ## Skins
 
-**A skin is a folder.** No setup, no build step, nothing to configure:
+**A skin is a folder.** Drop it in, reload, it is on the Skins page. Delete the
+folder and it is gone. Nothing to configure, nothing to build:
 
 ```
 website/skins/
@@ -63,26 +64,31 @@ The folder name is the skin name. The two files inside follow the pattern
 preview.<name>.png    the preview picture
 ```
 
-then the folder gets one line in `website/js/skins.js`:
+That is the whole setup **when the launcher is served by `tools/serve.py`**,
+which is what `start-offline.*` runs: the server answers
+`website/skins/list.js` straight from the directory listing, so the page always
+shows exactly the folders that are on disk.
+
+Opening `index.html` by double-clicking cannot work that way — a browser is not
+allowed to list a folder off your disk — so off disk the page goes by
+`website/js/skins.js`:
 
 ```js
 window.AMPLER_SKINS = [
     { name: 'skin template' },
     { name: 'creeper' },
-    { name: 'my skin' }        // <- drop the folder in, add the line
+    { name: 'my skin' }        // <- the folder to show when served from disk
 ];
 ```
 
-To remove a skin, delete the folder and its line. To reorder the page, reorder
-the lines.
+Only that list decides the **order** when served; a folder missing from it
+still shows up (at the end), and a folder listed but deleted is simply skipped.
 
 - **No preview file?** Not a problem — the card draws the front of the
   character from the skin file itself (classic 64×64 and HD skins both work),
   so a bare `<name>.png` still shows up.
 - **Trying one out?** The `Add skin folder` button on the Skins page loads
   folders straight off your disk for the session, without touching the repo.
-  (A page opened as `file://` cannot walk folders, so that button is for the
-  served/local-server case and for browsers that allow it.)
 
 ## What is included
 
@@ -123,8 +129,9 @@ node website/tools/browser-test.mjs       # real-browser, no-server check
 ```
 
 `verify-offline.mjs` proves that nothing reaches the network, that every
-reference resolves, that the client and skin lists agree with what is on disk,
-and that the launcher renders and behaves. `browser-test.mjs` drives Chromium
+reference resolves, that the client and skin lists agree with what is on disk
+(including that the served skins listing really is the folder listing), and
+that the launcher renders and behaves. `browser-test.mjs` drives Chromium
 against the real page, off disk and over http://, and can boot the five game
 builds (`--no-games` skips that).
 

@@ -24,7 +24,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, copyFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
@@ -248,6 +248,52 @@ async function driveLauncher(label, url) {
         ? ok('0 requests left the machine (' + seen.local + ' local)')
         : bad('external requests: ' + [...new Set(seen.external)].join(', '));
     pageErrors.length === 0 ? ok('0 uncaught page errors') : bad('page errors: ' + pageErrors.join(' | '));
+
+    /* ---- dropping a folder in is the whole setup (served only) ---- */
+    const tempSkin = 'zz-browser-test';
+    const tempDir = join(ROOT, 'website', 'skins', tempSkin);
+    let droppedFolder = null;
+    try {
+        mkdirSync(tempDir, { recursive: true });
+        // a bare <name>.png with no preview file: the card must draw the
+        // character from the skin itself
+        copyFileSync(join(ROOT, 'website', 'skins', 'creeper', 'creeper.png'),
+                     join(tempDir, tempSkin + '.png'));
+        await page.reload({ waitUntil: 'load' });
+        await page.click('#header2');
+        await new Promise((r) => setTimeout(r, 800));
+        droppedFolder = await page.evaluate((n) => {
+            const card = document.querySelector('#skingrid .skinCard[data-skin-name="' + n + '"]');
+            if (!card) return null;
+            return {
+                name: card.querySelector('.skinName').textContent,
+                canvas: !!card.querySelector('canvas'),
+                download: card.querySelector('.skinDownload').getAttribute('title'),
+            };
+        }, tempSkin);
+        if (!url.startsWith('file:') && droppedFolder && droppedFolder.name === tempSkin && droppedFolder.canvas) {
+            ok('a folder dropped into website/skins/ appears on its own ("' + tempSkin + '", preview drawn from the skin)');
+        } else if (url.startsWith('file:')) {
+            droppedFolder === null
+                ? ok('off disk the page goes by js/skins.js, as documented')
+                : bad('a folder not in js/skins.js showed up off disk: ' + JSON.stringify(droppedFolder));
+        } else {
+            bad('dropped folder did not appear correctly: ' + JSON.stringify(droppedFolder));
+        }
+    } catch (e) {
+        bad('folder-drop check threw: ' + e.message);
+    } finally {
+        rmSync(tempDir, { recursive: true, force: true });
+        if (!url.startsWith('file:')) {
+            await page.reload({ waitUntil: 'load' });
+            await page.click('#header2');
+            await new Promise((r) => setTimeout(r, 600));
+            const gone = await page.$$eval('#skingrid .skinCard', (n) => n.length);
+            gone === ctx.AMPLER_SKINS.length
+                ? ok('deleting the folder removes the skin again (' + gone + ' back)')
+                : bad('after deleting the folder the grid shows ' + gone + ' cards');
+        }
+    }
 
     if (process.env.SHOTS) {
         const out = join(process.env.SHOTS, 'launcher-' + (label.startsWith('file') ? 'file' : 'http') + '.png');

@@ -1,13 +1,14 @@
 /*
  * Ampler Launcher - the Skins page.
  *
- * Reads js/skins.js and the website/skins/ folder and lays the skins out as
- * boxes over the same background the Play page uses, small gap between them:
+ * Reads js/skins.js plus the folder listing and lays the skins out as boxes
+ * over the same background the Play page uses, small gap between them:
  * the preview picture on top of the box, the name in the bottom left and the
  * download button in the bottom right.
  *
  * Zero setup:
- *   - a skin folder is all it takes (see js/skins.js for the layout);
+ *   - a skin folder is all it takes (see js/skins.js for the layout). Served by
+ *     website/tools/serve.py, folders are found on reload with nothing to edit;
  *   - if a folder has no preview file, the picture is drawn from the skin
  *     itself - head, body, arms and legs of the classic 64x64 layout;
  *   - "Add skin folder" loads folders straight off the disk for the session.
@@ -33,7 +34,8 @@ var SKIN_REGIONS = [
 var skinsState = {
     library: [],
     built: false,
-    filter: ''
+    filter: '',
+    missing: {}   // names whose folder/file did not load - listed but deleted
 };
 
 function sg(id) {
@@ -50,39 +52,45 @@ function isImageName(name) {
     return types.indexOf(ext) !== -1;
 }
 
-function skinBaseName(path) {
-    var parts = String(path).split('/');
-    return parts[parts.length - 1];
-}
-
-function skinExtension(name) {
-    var m = /\.([A-Za-z0-9]+)$/.exec(String(name));
-    return m ? '.' + m[1].toLowerCase() : '.png';
-}
-
 function stripExtension(name) {
     return String(name).replace(/\.[A-Za-z0-9]+$/, '');
 }
 
-function buildManifestLibrary() {
+function staticSkinEntry(name) {
     var dir = window.AMPLER_SKIN_DIR || './website/skins/';
     var prefix = window.AMPLER_SKIN_PREVIEW_PREFIX || 'preview.';
+    var folder = dir + encodeURIComponent(name) + '/';
+    var skinName = name + '.png';
+
+    return {
+        name: name,
+        folder: folder,
+        fileName: skinName,
+        skinUrl: folder + encodeURIComponent(skinName),
+        previewUrl: folder + encodeURIComponent(prefix + skinName),
+        session: false
+    };
+}
+
+/* The library is the manifest (website/js/skins.js) plus whatever folders the
+   page was told about. Served by tools/serve.py that second list is the real
+   directory listing, so a folder dropped into website/skins/ turns up on its
+   own; from file:// it is empty and the manifest decides, in its own order. */
+function buildLibrary() {
+    var seen = {};
+
+    function add(name) {
+        if (!name || seen[name]) return;
+        // never build a path out of anything that could climb out of skins/
+        if (/[\\/]/.test(name) || name.indexOf('..') !== -1) return;
+        seen[name] = true;
+        skinsState.library.push(staticSkinEntry(name));
+    }
 
     (window.AMPLER_SKINS || []).forEach(function (entry) {
-        var name = typeof entry === 'string' ? entry : entry.name;
-        if (!name || /[\\/]/.test(name) || name.indexOf('..') !== -1) return;
-
-        var folder = dir + encodeURIComponent(name) + '/';
-        var skinName = name + '.png';
-        skinsState.library.push({
-            name: name,
-            folder: folder,
-            fileName: skinName,
-            skinUrl: folder + encodeURIComponent(skinName),
-            previewUrl: folder + encodeURIComponent(prefix + skinName),
-            session: false
-        });
+        add(typeof entry === 'string' ? entry : entry.name);
     });
+    (window.AMPLER_SKINS_FROM_DIR || []).forEach(add);
 }
 
 /* Pull a skin and its preview out of one folder's worth of files. The naming
@@ -212,28 +220,48 @@ function skinCard(entry) {
 
 function renderSkins() {
     if (!skinsState.built) {
-        buildManifestLibrary();
+        buildLibrary();
         skinsState.built = true;
     }
 
     var grid = sg('skingrid');
-    var empty = sg('skinempty');
     var query = skinsState.filter;
-    var shown = 0;
 
     grid.innerHTML = '';
     skinsState.library.forEach(function (entry) {
+        if (skinsState.missing[entry.name]) return;
         if (query && entry.name.toLowerCase().indexOf(query) === -1) return;
         grid.appendChild(skinCard(entry));
-        shown++;
     });
 
-    var total = skinsState.library.length;
-    sg('skinscount').textContent = total === 0 ? '' :
-        (query && shown !== total ? shown + ' of ' + total + ' skins'
-            : total + (total === 1 ? ' skin' : ' skins') + ' - drop a folder into website/skins/ to add your own');
-    empty.hidden = total !== 0;
-    grid.hidden = total === 0;
+    updateSkinCount();
+}
+
+/* Keeps the "N skins" line, the empty panel and the grid in step. Counted from
+   the cards that actually made it in, so a skin whose folder went away takes
+   itself out of the numbers too. */
+function updateSkinCount() {
+    var grid = sg('skingrid');
+    var visible = grid.children.length;
+    var known = skinsState.library.filter(function (e) {
+        return !skinsState.missing[e.name];
+    }).length;
+
+    sg('skinscount').textContent = known === 0 ? '' :
+        (visible !== known ? visible + ' of ' + known + ' skins'
+            : known + (known === 1 ? ' skin' : ' skins') + ' - drop a folder into website/skins/ to add your own');
+    sg('skinempty').hidden = known !== 0;
+    grid.hidden = known === 0;
+}
+
+/* A card whose skin AND preview both refuse to load is a folder that is no
+   longer there (a stale name in js/skins.js). Take the card out instead of
+   leaving a broken box with a download button that 404s. */
+function dropMissingCard(wrap, name) {
+    skinsState.missing[name] = true;
+    var card = wrap.parentNode;
+    if (card && card.parentNode) card.parentNode.removeChild(card);
+    updateSkinCount();
 }
 
 function filterSkins(value) {
@@ -261,10 +289,7 @@ function drawSkinPreview(entry, wrap) {
             img.className = 'skinPreview';
             img.draggable = false;
             img.src = entry.skinUrl;
-            img.onerror = function () {
-                img.remove();
-                wrap.classList.add('skinCardMissing');
-            };
+            img.onerror = function () { dropMissingCard(wrap, entry.name); };
             wrap.appendChild(img);
             return;
         }
@@ -292,9 +317,7 @@ function drawSkinPreview(entry, wrap) {
 
         wrap.appendChild(canvas);
     };
-    probe.onerror = function () {
-        wrap.classList.add('skinCardMissing');
-    };
+    probe.onerror = function () { dropMissingCard(wrap, entry.name); };
     probe.src = entry.skinUrl;
 }
 
@@ -352,7 +375,7 @@ function initSkinPicker() {
                 if (typeof showView === 'function') showView('skins');
                 renderSkins();
                 toast('SKINS LOADED', added + (added === 1 ? ' skin' : ' skins') +
-                    ' loaded for this session. They are not written to disk - drop the folder into ' +
+                    ' loaded for this session. Nothing is written to disk - drop the folder into ' +
                     'website/skins/ to keep it.', '#7CFC98');
             } else {
                 toast('NO SKINS FOUND', 'That folder did not contain any images.', 'goldenrod');

@@ -306,12 +306,17 @@ if (SKINS.length === 0) {
     if (skinProblems === 0)
         ok('every skin has its folder, its <name>.png and its ' + SKIN_PREFIX + '<name>.png');
 
-    // A folder dropped in by hand must not be silently ignored.
-    const foldersOnDisk = readdirSync(SKIN_FOLDER).filter((n) => statSync(join(SKIN_FOLDER, n)).isDirectory());
+    // Folders that are on disk but not in the list still show up whenever the
+    // launcher is served by tools/serve.py (it answers website/skins/list.js
+    // from the directory listing). Off disk and on plain static servers the
+    // list is what the page goes by, so this is a note, not a failure.
+    const foldersOnDisk = readdirSync(SKIN_FOLDER)
+        .filter((n) => !n.startsWith('.') && statSync(join(SKIN_FOLDER, n)).isDirectory());
     const unlisted = foldersOnDisk.filter((n) => !SKINS.includes(n));
     unlisted.length === 0
-        ? ok('no skin folder on disk is missing from js/skins.js')
-        : bad('skin folder not listed in js/skins.js: ' + unlisted.join(', '));
+        ? ok('every skin folder on disk is also in js/skins.js (' + foldersOnDisk.length + ')')
+        : skipped('on disk but not in js/skins.js: ' + unlisted.join(', ') +
+                  ' - they still appear when served, add the line for file:// use');
 }
 
 /* ---- jsdom: actually run the launcher ---- */
@@ -435,6 +440,16 @@ if (SKINS.length === 0) {
         assert(onDisk.length > 0 && (onDisk[0] === 0x89 || onDisk[0] === 0xFF),
             'the download button points at the real skin file (' + firstUrl + ')');
 
+        // searching filters the grid and says so, without claiming there are no skins
+        win.filterSkins('zzzz');
+        assert(d.querySelectorAll('#skingrid .skinCard').length === 0 &&
+               d.getElementById('skinscount').textContent === '0 of ' + SKINS.length + ' skins',
+            'a search that matches nothing reads "0 of N skins" (' +
+            d.getElementById('skinscount').textContent + ')');
+        win.filterSkins('');
+        assert(d.querySelectorAll('#skingrid .skinCard').length === SKINS.length,
+            'clearing the search brings every skin back (' + SKINS.length + ')');
+
         win.showView('play');
         assert(!d.getElementById('playview').hidden && d.getElementById('skinsview').hidden,
             'the Play tab comes straight back to the play page');
@@ -532,6 +547,26 @@ if (!pythonAvailable()) {
             }
         }
     }
+    // The Skins page's folder listing is generated per request, not shipped.
+    if (booted) {
+        const base = 'http://127.0.0.1:' + port + '/';
+        try {
+            const r = await fetch(base + 'website/skins/list.js');
+            const text = await r.text();
+            const m = /window\.AMPLER_SKINS_FROM_DIR\s*=\s*(\[[^\]]*\])/.exec(text);
+            const got = m ? JSON.parse(m[1]) : null;
+            const want = readdirSync(SKIN_FOLDER)
+                .filter((n) => !n.startsWith('.') && statSync(join(SKIN_FOLDER, n)).isDirectory())
+                .filter((n) => readdirSync(join(SKIN_FOLDER, n))
+                    .some((f) => ['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(extname(f).toLowerCase())));
+            got && JSON.stringify(got) === JSON.stringify(want)
+                ? ok('the served skins listing is the live folder listing (' + want.join(', ') + ')')
+                : bad('served skins listing ' + JSON.stringify(got) + ' != folders on disk ' + JSON.stringify(want));
+        } catch (e) {
+            bad('skins listing request failed: ' + e.message);
+        }
+    }
+
     srv.kill('SIGTERM');
 }
 
