@@ -211,6 +211,27 @@ for (const file of SCANNABLE) {
 }
 if (brokenRefs === 0) ok(checkedRefs + ' local references all resolve on disk');
 
+// The other direction: artwork that nothing points at any more. The sidebar
+// removal (Web / Modded / Mobile pickers, Discord, Credits, Offline status,
+// the Eaglercraft titles) left 26 unused images behind and they were cleaned
+// up; this keeps that from happening again. A NOTE, never a failure, so art
+// dropped in ahead of the code that will use it does not break the suite.
+{
+    const assets = ALL.filter((f) =>
+        /^website[\/](images|fonts)[\/]/.test(rel(f)) && !rel(f).endsWith('fonts.css'));
+
+    const haystack = SCANNABLE
+        .filter((f) => !rel(f).startsWith('website/mc/'))
+        .map((f) => readFileSync(f, 'utf8'))
+        .join('\n');
+
+    const unused = assets.filter((f) => !haystack.includes(rel(f).split('/').pop()));
+    unused.length === 0
+        ? ok('all ' + assets.length + ' images and fonts are referenced by the launcher')
+        : skipped(unused.length + ' asset(s) nothing references: ' +
+                  unused.map((f) => rel(f).split('/').pop()).join(', '));
+}
+
 /* ------------------------------------------------------------------ *
  * 3. Manifest agrees with disk, and the launcher drives it correctly
  * ------------------------------------------------------------------ */
