@@ -20,11 +20,11 @@
 *.bat  text eol=crlf
 
 # Binary assets.
-fonts/*.woff2 binary
-server/*.zip binary
-images/*.png binary
-images/*.jpg binary
+app/fonts/*.woff2 binary
+app/server/*.zip binary
+app/images/*.png binary
+app/images/*.jpg binary
 
 # LAST, so it wins: the bundled game builds are opaque binaries. No diff, no
 # line-ending conversion, no text detection.
-mc/** -text -diff
+app/mc/** -text -diff

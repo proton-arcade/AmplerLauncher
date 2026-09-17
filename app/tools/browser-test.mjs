@@ -25,7 +25,15 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 
-const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
+function findRoot() {
+    let d = dirname(fileURLToPath(import.meta.url));
+    while (d !== dirname(d)) {
+        if (existsSync(join(d, 'index.html')) && existsSync(join(d, 'README.md'))) return d;
+        d = dirname(d);
+    }
+    return dirname(dirname(fileURLToPath(import.meta.url)));
+}
+const ROOT = findRoot();
 const ARGS = process.argv.slice(2);
 const RUN_GAMES = !ARGS.includes('--no-games');
 
@@ -67,7 +75,7 @@ const browser = await puppeteer.launch({
     defaultViewport: { width: 1600, height: 900 },
 });
 
-const clientsSrc = readFileSync(join(ROOT, 'js/clients.js'), 'utf8');
+const clientsSrc = readFileSync(join(ROOT, 'app/js/clients.js'), 'utf8');
 const ctx = {};
 new Function('window', clientsSrc)(ctx);
 const BUNDLED = ctx.AMPLER_CLIENTS.filter((c) => c.bundled);
@@ -149,7 +157,7 @@ async function driveLauncher(label, url) {
 /* ---- optional server ---- */
 let srv = null, httpBase = null;
 const port = 8123;
-srv = spawn('python3', [join(ROOT, 'tools/serve.py'), '--port', String(port),
+srv = spawn('python3', [join(ROOT, 'app', 'tools', 'serve.py'), '--port', String(port),
     '--host', '127.0.0.1', '--no-browser'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
 for (let i = 0; i < 60; i++) {
     try { const r = await fetch('http://127.0.0.1:' + port + '/'); if (r.status === 200) { httpBase = 'http://127.0.0.1:' + port + '/'; break; } }

@@ -37,8 +37,20 @@ import socket
 import socketserver
 import sys
 
-# The folder that contains index.html - the parent of this script's folder.
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+def _find_root():
+    # Everything but README.md and index.html sits under app/, so walk up from
+    # this file until we reach the directory that holds the launcher page.
+    d = os.path.dirname(os.path.abspath(__file__))
+    while d != os.path.dirname(d):
+        if (os.path.exists(os.path.join(d, "index.html"))
+                and os.path.exists(os.path.join(d, "README.md"))):
+            return d
+        d = os.path.dirname(d)
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+# The folder that contains index.html (the repo root).
+ROOT = _find_root()
 
 EXTRA_MIME = {
     ".html": "text/html; charset=utf-8",
