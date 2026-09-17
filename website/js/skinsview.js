@@ -128,6 +128,17 @@ function skinFromFolder(name, entries) {
     };
 }
 
+/* Object URLs are only alive until the page unloads, so anything we are not
+   going to show any more gets released by hand. Listed skins have no blobs to
+   release - they point straight at files. */
+function releaseBlobs(entry) {
+    if (!entry || !entry.session) return;
+    try { URL.revokeObjectURL(entry.skinUrl); } catch (e) { /* nothing to do */ }
+    if (entry.previewUrl) {
+        try { URL.revokeObjectURL(entry.previewUrl); } catch (e) { /* nothing to do */ }
+    }
+}
+
 function addSkinFolders(fileList) {
     var groups = {};
     var order = [];
@@ -147,9 +158,12 @@ function addSkinFolders(fileList) {
         var entry = skinFromFolder(name, groups[name]);
         if (!entry) return;
         // a name can only appear once: the folder you just loaded wins over
-        // whichever entry (listed or previously loaded) used that name
+        // whichever entry (listed or previously loaded) used that name, and the
+        // blob URLs the replaced one was holding are released with it
         skinsState.library = skinsState.library.filter(function (s) {
-            return s.name !== name;
+            if (s.name !== name) return true;
+            releaseBlobs(s);
+            return false;
         });
         skinsState.library.push(entry);
         added++;
@@ -332,8 +346,8 @@ function downloadSkin(event, button) {
     }
 
     var card = button;
-    while (card && !card.getAttribute('data-skin-url')) card = card.parentNode;
-    if (!card) return;
+    while (card && card.getAttribute && !card.getAttribute('data-skin-url')) card = card.parentNode;
+    if (!card || !card.getAttribute) return;
 
     var url = card.getAttribute('data-skin-url');
     var fileName = card.getAttribute('data-skin-file') || (card.getAttribute('data-skin-name') + '.png');

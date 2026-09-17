@@ -136,12 +136,20 @@ async function driveLauncher(label, url) {
         ? ok('version dropdown rendered ' + rows + ' rows')
         : bad('dropdown rendered ' + rows + ' rows, expected ' + ctx.AMPLER_CLIENTS.length);
 
-    // Click every dropdown row, like a user would.
+    // Click every dropdown row, like a user would - opening the list first, and
+    // checking it closes itself again after the pick.
     const playTargets = [];
     for (let i = 0; i < rows; i++) {
+        await page.click('#drop');
+        const beforeClick = await page.$eval('#dropdn', (n) => n.style.visibility);
         await page.click('#dropdn .dropdownOptions:nth-child(' + (i + 1) + ')');
+        const afterClick = await page.$eval('#dropdn', (n) => n.style.visibility);
+        if (beforeClick !== 'visible' || afterClick !== 'hidden') {
+            bad('row ' + (i + 1) + ' left the list in the wrong state (' + beforeClick + ' -> ' + afterClick + ')');
+        }
         playTargets.push(await page.$eval('#playbutton', (a) => a.getAttribute('href')));
     }
+    ok('every row opened the list, switched the build and closed it again');
     const real = playTargets.filter((h) => h && h !== '#');
     ok('clicked ' + playTargets.length + ' rows; ' + real.length + ' resolve to a build, ' +
        (playTargets.length - real.length) + ' correctly inert');
@@ -165,6 +173,17 @@ async function driveLauncher(label, url) {
     });
     const renamed = await page.$eval('#username', (n) => n.textContent);
     renamed === 'Arena Test' ? ok('the name can be changed') : bad('rename gave "' + renamed + '"');
+    // opening the rename field must not leave the version list hanging open
+    await page.click('#drop');
+    await new Promise((r) => setTimeout(r, 200));
+    await page.click('#userbox');
+    await new Promise((r) => setTimeout(r, 200));
+    const listAfterUserClick = await page.$eval('#dropdn', (n) => n.style.visibility);
+    listAfterUserClick === 'hidden'
+        ? ok('clicking the username closes the version list')
+        : bad('the version list stayed open when the rename field opened');
+    await page.keyboard.press('Escape');
+
     await page.reload({ waitUntil: 'load' });
     const kept = await page.$eval('#username', (n) => n.textContent);
     kept === 'Arena Test' ? ok('the name is remembered after a reload') : bad('the name was lost: "' + kept + '"');

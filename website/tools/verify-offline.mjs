@@ -425,6 +425,27 @@ if (SKINS.length === 0) {
         }
         if (deadLinks === 0) ok('clicked all ' + rows.length + ' dropdown rows: 0 dead Play links');
 
+        // Opening the list flips the arrow; picking a row (even by clicking the
+        // text inside it, not the row itself) selects and closes it again.
+        win.dropdowntoggle();
+        assert(d.getElementById('dropdn').style.visibility === 'visible',
+            'the version selector opens');
+        const rowToClick = d.querySelector('#dropdn .dropdownOptions[data-client="1.8.8"]');
+        rowToClick.querySelector('.dropdownOptionText p')
+            .dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        assert(d.getElementById('gametitle').textContent === 'Previous release' &&
+               d.getElementById('gameversion').textContent === '1.8.8-u53',
+            'clicking a row picks that build (' + d.getElementById('gametitle').textContent + ')');
+        assert(d.getElementById('dropdn').style.visibility === 'hidden',
+            'picking a build closes the list');
+
+        // Clicking the username closes an open list too - opening the rename
+        // field should not leave the list hanging open.
+        win.dropdowntoggle();
+        d.getElementById('userbox').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+        assert(d.getElementById('dropdn').style.visibility === 'hidden',
+            'clicking the username closes the version list');
+
         // The dropdown must stack, not pile every row at bottom:0.
         const bottoms = [...d.querySelectorAll('#dropdn .dropdownOptions')]
             .map((r) => r.style.bottom).filter(Boolean);

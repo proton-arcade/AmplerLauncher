@@ -103,10 +103,6 @@ function toast(title, body, colour) {
     }, 5400));
 }
 
-function errorNA(msg) {
-    toast('SORRY!', msg || "This feature hasn't been made yet.");
-}
-
 /* ------------------------------------------------------------------ *
  * Views - Play / Skins
  * ------------------------------------------------------------------ */
@@ -278,11 +274,12 @@ function init() {
     });
     input.addEventListener('blur', commitUser);
 
-    // Clicking anywhere outside the selector closes the version dropdown.
+    // Clicking anywhere outside the selector closes the version dropdown - the
+    // username included, so opening the rename field tidies the bar up.
     document.addEventListener('click', function (event) {
         var node = event.target;
         while (node) {
-            if (node.id === 'drop' || node.id === 'dropdn' || node.id === 'userbox') return;
+            if (node.id === 'drop' || node.id === 'dropdn') return;
             node = node.parentNode;
         }
         closeDropdown();
