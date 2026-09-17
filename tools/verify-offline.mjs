@@ -130,6 +130,25 @@ if (remoteHits.length === 0) {
     for (const h of [...new Set(remoteHits)]) bad('remote reference: ' + h);
 }
 
+// The LAUNCHER must not call any API that requires a server or the network to
+// render. (The game builds contain WebSocket/fetch/XHR, but those are opt-in
+// multiplayer paths that only fire when the user initiates a connection - the
+// browser test's request watcher confirms 0 of them fire at boot.)
+{
+    const launcherFiles = ALL.filter((f) =>
+        rel(f) === 'index.html' || rel(f).startsWith('js/') || rel(f).startsWith('css/'));
+    const REQUIRED = ['XMLHttpRequest', 'navigator.serviceWorker', 'importScripts', 'type="module"'];
+    let hits = 0;
+    for (const f of launcherFiles) {
+        const text = readFileSync(f, 'utf8');
+        for (const tok of REQUIRED) {
+            const n = text.split(tok).length - 1;
+            if (n) { hits++; bad('launcher ' + rel(f) + ' uses server-requiring API ' + tok + ' x' + n); }
+        }
+    }
+    if (hits === 0) ok('launcher uses none of fetch/XMLHttpRequest/import()/module/serviceWorker');
+}
+
 // Prove the scan is not vacuous: it must catch the original Google Fonts tag.
 // Built by concatenation so this fixture does not itself trip the scan above.
 const CANARY = '<' + 'link href="https://fonts.googleapis.com/css2?family=Roboto" rel="stylesheet">';
