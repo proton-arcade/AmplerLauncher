@@ -70,7 +70,8 @@
                             <input id="skinsearch" type="text" placeholder="Search skins" spellcheck="false"
                                 autocomplete="off" oninput="filterSkins(this.value)">
                         </div>
-                        <div class="skinTool" id="addfolder" onclick="pickSkinFolder()" title="Load skin folders from anywhere on this computer">
+                        <div class="skinTool" id="addfolder" role="button" tabindex="0" aria-label="Add skin folder"
+                            onclick="pickSkinFolder()" title="Load skin folders from anywhere on this computer">
                             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2" />
@@ -107,7 +108,7 @@
                     aria-expanded="false" aria-label="Choose a version" onclick="dropdowntoggle()">
                     <div style="display: flex; gap: 1vw;">
                         <div class="centeredIcon">
-                            <img id="gameicon" src="./website/images/m-logo1.png" style="width: 2.5vw;" alt="">
+                            <img id="gameicon" src="./website/images/m-logo1.png" alt="">
                         </div>
                         <div class="versionText">
                             <p id="gametitle" class="bolded">Latest release</p>

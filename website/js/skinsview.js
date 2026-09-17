@@ -381,6 +381,21 @@ function pickSkinFolder() {
 function initSkinPicker() {
     var input = sg('skinfolder');
     if (!input) return;
+
+    // The key handler lives in js/index.js (loaded first); fall back to a local
+    // one so this file still works if it is ever loaded on its own.
+    var button = sg('addfolder');
+    if (button) {
+        if (typeof activateOnKey === 'function') {
+            activateOnKey(button, pickSkinFolder);
+        } else {
+            button.addEventListener('keydown', function (event) {
+                if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'Spacebar') return;
+                event.preventDefault();
+                pickSkinFolder();
+            });
+        }
+    }
     input.addEventListener('change', function () {
         var files = input.files;
         if (files && files.length) {

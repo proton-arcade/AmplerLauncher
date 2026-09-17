@@ -517,6 +517,13 @@ pre {
     justify-content: center;
 }
 
+/* The version icons (bar and list) are sized here rather than inline, so the
+   phone rules in screensize.css can enlarge them without !important. */
+#gameicon,
+.dropdownOption img {
+    width: 2.5vw;
+}
+
 .versionText {
     margin-right: 4.25vw;
     display: grid;

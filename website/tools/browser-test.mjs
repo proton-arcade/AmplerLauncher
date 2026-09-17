@@ -340,6 +340,100 @@ async function driveLauncher(label, url) {
         bad('going back to Play lost the button/selector');
     existsSync(join(ROOT, back.href)) ? ok('Play still points at a real build') : bad('Play points at ' + back.href);
 
+    /* ---- phones: the same launcher, sized for a thumb ---- *
+     * On a 390px window the bar used to come out 18px tall with 5px text and
+     * the skins download button a 9px square. screensize.css now carries a
+     * phone block (bar becomes a row, vw sizes become px) which must not
+     * touch any other window size - the pixel diff against the previous
+     * commit is part of the review. */
+    const phonePage = await browser.newPage();
+    const phoneSeen = watch(phonePage);
+    await phonePage.setViewport({ width: 390, height: 844, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+    await phonePage.goto(url, { waitUntil: 'load', timeout: 60000 });
+    await new Promise((r) => setTimeout(r, 600));
+
+    const phone = await phonePage.evaluate(() => {
+        const box = (sel) => {
+            const e = document.querySelector(sel);
+            if (!e) return null;
+            const r = e.getBoundingClientRect();
+            return { x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom };
+        };
+        return {
+            window: [innerWidth, innerHeight],
+            scrollW: document.documentElement.scrollWidth,
+            bar: box('.gameSelection'), drop: box('#drop'), play: box('.playButton'),
+            user: box('#userbox'), label: box('.versionText'),
+            labelText: document.getElementById('gameversion').textContent,
+        };
+    });
+
+    const phoneItems = [['version selector', phone.drop], ['Play', phone.play], ['the user', phone.user]];
+    const tooSmall = phoneItems.filter(([, b]) => !b || b.h < 44);
+    tooSmall.length === 0
+        ? ok('phone: bar ' + Math.round(phone.bar.h) + 'px with version selector ' + Math.round(phone.drop.h) +
+             ', Play ' + Math.round(phone.play.h) + ', the user ' + Math.round(phone.user.h) + ' - all tappable')
+        : bad('phone: too small to tap: ' + tooSmall.map(([n]) => n).join(', '));
+
+    const laidOut = phone.drop.right <= phone.play.x + 1 && phone.play.right <= phone.user.x + 1 &&
+        phone.play.y >= phone.bar.y - 1 && phone.user.bottom <= phone.bar.bottom + 1 &&
+        phone.label.bottom <= phone.bar.bottom + 1 && phone.label.y >= phone.bar.y - 1;
+    laidOut
+        ? ok('phone: the bar is a row - no overlap, and the version label stays inside it')
+        : bad('phone: bar items overlap or spill: ' + JSON.stringify({
+            dropRight: phone.drop.right, playX: phone.play.x, userX: phone.user.x,
+            label: [phone.label.y, phone.label.bottom], bar: [phone.bar.y, phone.bar.bottom] }));
+
+    phone.scrollW <= phone.window[0] + 1
+        ? ok('phone: nothing overflows the ' + phone.window[0] + 'px window')
+        : bad('phone: the page is ' + phone.scrollW + 'px wide in a ' + phone.window[0] + 'px window');
+
+    await phonePage.click('#drop');
+    await new Promise((r) => setTimeout(r, 500));
+    const phoneList = await phonePage.evaluate(() => {
+        const rows = [...document.querySelectorAll('#dropdn > *')].map((e) => {
+            const r = e.getBoundingClientRect();
+            return { x: r.x, h: r.height, right: r.right, bottom: r.bottom };
+        });
+        return { rows, barTop: document.querySelector('.gameSelection').getBoundingClientRect().y };
+    });
+    const listOk = phoneList.rows.length > 0 &&
+        phoneList.rows.every((r) => r.h >= 44) &&
+        phoneList.rows.every((r) => r.x >= -0.5 && r.right <= phone.window[0] + 0.5) &&
+        Math.max(...phoneList.rows.map((r) => r.bottom)) <= phoneList.barTop + 1;
+    listOk
+        ? ok('phone: the version list opens above the bar, ' + phoneList.rows.length + ' rows of ' +
+             Math.round(phoneList.rows[0].h) + 'px')
+        : bad('phone: version list layout: ' + JSON.stringify(phoneList));
+
+    await phonePage.click('#header2');
+    await new Promise((r) => setTimeout(r, 700));
+    const phoneSkins = await phonePage.evaluate(() => {
+        const box = (sel) => {
+            const e = document.querySelector(sel);
+            if (!e) return null;
+            const r = e.getBoundingClientRect();
+            return { w: r.width, h: r.height, right: r.right, bottom: r.bottom };
+        };
+        return {
+            cards: document.querySelectorAll('#skingrid .skinCard').length,
+            preview: box('.skinPreviewWrap'), download: box('.skinDownload'), user: box('#userbox'),
+            window: [innerWidth, innerHeight], scrollW: document.documentElement.scrollWidth,
+        };
+    });
+    const skinsPhoneOk = phoneSkins.cards > 0 && phoneSkins.preview.h >= 100 &&
+        phoneSkins.download.h >= 30 && phoneSkins.download.w >= 30 &&
+        phoneSkins.user.right >= phoneSkins.window[0] - 24 && phoneSkins.scrollW <= phoneSkins.window[0] + 1;
+    skinsPhoneOk
+        ? ok('phone: skins page keeps ' + phoneSkins.cards + ' cards, preview ' + Math.round(phoneSkins.preview.h) +
+             'px, download button ' + Math.round(phoneSkins.download.w) + 'px, user bottom-right')
+        : bad('phone: skins page layout: ' + JSON.stringify(phoneSkins));
+
+    phoneSeen.external.length === 0
+        ? ok('phone: 0 requests left the machine')
+        : bad('phone: external requests: ' + [...new Set(phoneSeen.external)].join(', '));
+    await phonePage.close();
+
     // The launcher must not reach out.
     seen.external.length === 0
         ? ok('0 requests left the machine (' + seen.local + ' local)')

@@ -233,6 +233,74 @@ if (brokenRefs === 0) ok(checkedRefs + ' local references all resolve on disk');
 }
 
 /* ------------------------------------------------------------------ *
+ * 2b. Sizes: the design scales, phones are handled in one place
+ * ------------------------------------------------------------------ */
+
+head('2b. Sizes scale with the window, phones are handled separately');
+
+{
+    // A size written as max()/min() of a vw value and a px value looks
+    // harmless and is not: it engages at whatever window width makes the px
+    // side bigger, which for a "phone" minimum such as 7px can be a 1600px
+    // desktop. That is exactly how the skins card footer grew 3px while the
+    // phone work was being written, so the mix is banned outright: the
+    // design is vw and scales, phones are px inside a phone-only query.
+    const vwPxMixes = (css) => {
+        const hits = [];
+        const rx = /(?<![-\w])(max|min)\(([^()]*)\)/g;
+        let m;
+        while ((m = rx.exec(css)) !== null) {
+            const args = m[2];
+            if (/\d(?:\.\d+)?vw/.test(args) && /\d(?:\.\d+)?px/.test(args)) hits.push(m[0]);
+        }
+        return hits;
+    };
+
+    const mixed = [];
+    for (const file of ['website/css/style.css', 'website/css/screensize.css', 'website/css/fonts.css']) {
+        if (!existsSync(join(ROOT, file))) continue;
+        const css = readFileSync(join(ROOT, file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+        for (const hit of vwPxMixes(css)) mixed.push(file + ': ' + hit);
+    }
+    mixed.length === 0
+        ? ok('no size mixes vw with px, so the design scales as drawn at every window size')
+        : bad('vw/px size mixes change the design at some window sizes: ' + mixed.join(' | '));
+
+    if (vwPxMixes('.skinDownload { padding: max(0.35vw, 7px); }').length === 1 &&
+        vwPxMixes('.skinsGrid { grid-template-columns: repeat(auto-fill, minmax(12.5vw, 1fr)); }').length === 0) {
+        ok('vw/px detector is live: catches the 7px minimum that grew the skins footer, ignores minmax()');
+    } else {
+        bad('the vw/px detector does not detect the regression it exists for');
+    }
+
+    // ...and the phone rules stay in one small-window query: last block in
+    // screensize.css, guarded by both width and height, all px inside.
+    const sizeCss = readFileSync(join(ROOT, 'website/css/screensize.css'), 'utf8');
+    const phoneAt = sizeCss.search(/@media[^{]*max-width:\s*768px/);
+    if (phoneAt === -1) {
+        bad('screensize.css has no phone-sized media query');
+    } else {
+        const phone = sizeCss.slice(phoneAt);
+        const bare = phone.replace(/\/\*[\s\S]*?\*\//g, '');
+        const guarded = /max-width:\s*768px/.test(phone) && /max-height:\s*480px/.test(phone);
+        const only = (bare.match(/@media/g) || []).length === 1;
+        const pxOnly = !/\d(?:\.\d+)?vw/.test(bare);
+        const rules = (bare.match(/\{/g) || []).length - 1;
+        // the query closes and nothing at all follows it
+        let depth = 0;
+        for (const ch of bare) {
+            if (ch === '{') depth++;
+            else if (ch === '}') { depth--; if (depth < 0) depth = NaN; }
+        }
+        const closedLast = depth === 0;
+        guarded && only && pxOnly && closedLast
+            ? ok('phone sizing is one ' + rules + '-rule block in the last (max-width 768px / max-height 480px) query')
+            : bad('phone media query: guarded=' + guarded + ' singleBlock=' + only +
+                  ' pxOnly=' + pxOnly + ' closedLast=' + closedLast);
+    }
+}
+
+/* ------------------------------------------------------------------ *
  * 3. Manifest agrees with disk, and the launcher drives it correctly
  * ------------------------------------------------------------------ */
 

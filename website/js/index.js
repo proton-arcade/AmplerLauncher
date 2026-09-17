@@ -150,11 +150,10 @@ function buildDropdown() {
     menu.innerHTML = '';
 
     // Items are absolutely positioned and stack upward from the selector, so
-    // the first one in the DOM sits highest: bottom = (count-1-index) * 5vw.
+    // the first one in the DOM sits highest (see stackDropdownRows).
     list.forEach(function (client, index) {
         var row = document.createElement('div');
         row.className = 'dropdownOptions dropdown-' + client.id;
-        row.style.bottom = ((list.length - 1 - index) * 5) + 'vw';
         row.style.opacity = client.bundled ? '1' : '0.55';
         row.setAttribute('data-client', client.id);
         row.setAttribute('role', 'option');
@@ -170,7 +169,7 @@ function buildDropdown() {
         });
         row.innerHTML =
             '<div class="dropdownOption">' +
-                '<div class="centeredIcon"><img src="' + escapeHtml(client.icon) + '" style="width: 2.5vw;" alt=""></div>' +
+                '<div class="centeredIcon"><img src="' + escapeHtml(client.icon) + '" alt=""></div>' +
                 '<div class="dropdownOptionText">' +
                     '<p class="bolded">' + escapeHtml(client.title) + '</p>' +
                     '<p>' + escapeHtml(client.version) + '</p>' +
@@ -178,6 +177,30 @@ function buildDropdown() {
             '</div>';
         menu.appendChild(row);
     });
+
+    stackDropdownRows();
+}
+
+// Rows tile upward from the bar, offset by the height the stylesheet actually
+// gave them, so the list stays tight at any window size. The height is
+// measured rather than assumed because it is 5vw on a desktop and a flat 44px
+// on a phone (see the phone block in screensize.css); if it cannot be measured
+// (jsdom, or a display:none page) it falls back to the 5vw the design asks for.
+// Runs again whenever the list opens and whenever the window changes size, so
+// resizing across that breakpoint - or turning a phone - does not leave the
+// rows stacked at their old height.
+function stackDropdownRows() {
+    var menu = el('dropdn');
+    if (!menu) return;
+    var rows = menu.children;
+    if (!rows.length) return;
+    var step = rows[0].getBoundingClientRect
+        ? rows[0].getBoundingClientRect().height
+        : 0;
+    for (var i = 0; i < rows.length; i++) {
+        var offset = rows.length - 1 - i;
+        rows[i].style.bottom = step > 0 ? (offset * step) + 'px' : (offset * 5) + 'vw';
+    }
 }
 
 function selectClient(id, silent) {
@@ -220,6 +243,7 @@ function dropdowntoggle() {
 }
 
 function openDropdown() {
+    stackDropdownRows();
     el('dropdn').style.visibility = 'visible';
     el('dropdownuparrow').innerHTML = SVG_UP;
     el('drop').setAttribute('aria-expanded', 'true');
@@ -305,6 +329,10 @@ function init() {
     activateOnKey(el('header2'), function () { showView('skins'); });
     activateOnKey(el('drop'), function () { dropdowntoggle(); });
     activateOnKey(el('userbox'), function () { editUser(); });
+
+    // The rows are offset in px from their measured height, so a resize (or a
+    // phone being turned) needs them measured again.
+    window.addEventListener('resize', stackDropdownRows);
 
     // Escape closes the version list, wherever the focus happens to be.
     document.addEventListener('keydown', function (event) {

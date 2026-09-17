@@ -129,3 +129,256 @@
     padding: 0.5rem;
     font-size: 0.8rem;
 }
+
+/* ------------------------------------------------------------------------- *
+ * Phones.
+ *
+ * Everything above this line is the design: sizes in vw, so the launcher
+ * scales with the window. That stops working on a phone - a 390px window
+ * turns the bottom bar into an 18px strip with 5px text and the skins
+ * download button into a 9px square, which is neither readable nor tappable.
+ *
+ * So on a phone (narrow, or short when held sideways) the bar stops being
+ * three absolutely placed pieces that overlap on the same line and becomes a
+ * row, and the vw sizes become px sizes with room for a thumb.
+ *
+ * This block is scoped to phone-sized windows only, so every other size is
+ * rendered by the rules above it, untouched.
+ * ------------------------------------------------------------------------- */
+
+@media only screen and (max-width: 768px), only screen and (max-height: 480px) {
+
+    /* ---------------- top of the page ---------------- */
+
+    .gameHeader {
+        padding: 12px 12px 0;
+    }
+
+    .currentGame {
+        font-size: 13px;
+    }
+
+    .headerButtons,
+    .headerButtonSelected {
+        padding: 8px 10px;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .headerButtonSelected {
+        border-bottom-width: 3px;
+    }
+
+    /* ---------------- bottom bar ---------------- */
+
+    /* one row: [version] [play] [user] */
+    .gameSelection {
+        height: auto;
+        min-height: 56px;
+        gap: 6px;
+        padding: 6px 8px;
+    }
+
+    .versionSelector {
+        position: static;
+        flex: 1 1 auto;
+        min-width: 0;
+        height: 44px;
+    }
+
+    .dropdownSelector {
+        width: 100%;
+        height: 44px;
+        margin-left: 0;
+        padding: 0 8px;
+        justify-content: flex-start;
+    }
+
+    /* the icon and the chevron hold their size instead of being squashed by
+       the flex row they sit in */
+    .centeredIcon {
+        flex: 0 0 auto;
+    }
+
+    #gameicon {
+        width: 22px;
+    }
+
+    #dropdownuparrow svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Two lines ("Latest release" / "1.12.2-u3") do not fit across a phone
+       bar, so it shows the version number - the part that says which build
+       this is - on one line. The full label, both lines, is on every row of
+       the list that opens. */
+    .versionText {
+        min-width: 0;
+        margin-right: 2px;
+        overflow: hidden;
+        font-size: 13px;
+        line-height: 1.2;
+    }
+
+    #gametitle {
+        display: none;
+    }
+
+    #gameversion {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    /* the list opens across the width of the bar, above it */
+    .dropdownMenu {
+        left: 8px;
+        right: 8px;
+        bottom: 100%;
+    }
+
+    .dropdownOptions {
+        left: 0;
+        right: 0;
+        width: auto;
+        height: 44px;
+        margin-left: 0;
+        font-size: 14px;
+    }
+
+    .dropdownOption {
+        left: 12px;
+        gap: 10px;
+    }
+
+    .dropdownOption img {
+        width: 22px;
+    }
+
+    #playbutton {
+        flex: 0 0 auto;
+    }
+
+    /* in the flow, so the row spaces it instead of the absolute centre */
+    .playButton {
+        position: static;
+        bottom: auto;
+        width: 132px;
+        height: 44px;
+        margin-left: 0;
+    }
+
+    .playButton:hover {
+        transform: none;
+    }
+
+    .username {
+        position: static;
+        flex: 0 0 auto;
+        height: 44px;
+        padding: 0 8px;
+        background-color: transparent;
+    }
+
+    /* The skins page hides the two things to its left, so the user has to be
+       pushed back across to the right-hand end of the bar. */
+    .mainPage.skinsMode .username {
+        margin-left: auto;
+    }
+
+    .usernameText,
+    .usernameInput {
+        font-size: 15px;
+    }
+
+    .usernameInput {
+        width: 140px;
+        height: 44px;
+        border-bottom-width: 2px;
+    }
+
+    /* ---------------- skins ---------------- */
+
+    .skinsScroll {
+        padding: 12px 12px 20px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .skinsHead {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .skinsTools {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .skinsTitle {
+        font-size: 15px;
+        line-height: 1.4;
+    }
+
+    .skinsCount {
+        font-size: 12px;
+    }
+
+    .skinSearch input {
+        width: 140px;
+        padding: 7px 10px;
+        font-size: 13px;
+    }
+
+    .skinTool {
+        gap: 6px;
+        padding: 7px 10px;
+        font-size: 13px;
+    }
+
+    .skinTool svg {
+        width: 15px;
+        height: 15px;
+    }
+
+    /* cards big enough to judge a skin by: at least 150px wide, so a 390px
+       phone shows two and a small one shows one */
+    .skinsGrid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+    }
+
+    .skinPreviewWrap {
+        height: 150px;
+    }
+
+    .skinFooter {
+        gap: 8px;
+        padding: 8px 10px;
+    }
+
+    .skinName {
+        font-size: 12px;
+        line-height: 1.3;
+    }
+
+    .skinDownload {
+        padding: 10px;
+    }
+
+    .skinDownload svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .skinsEmpty {
+        font-size: 13px;
+        line-height: 1.7;
+    }
+
+    .skinsEmpty pre {
+        font-size: 11px;
+        line-height: 1.4;
+    }
+}
