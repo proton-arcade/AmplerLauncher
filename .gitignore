@@ -1,0 +1,28 @@
+# Build / test scaffolding that must not be committed.
+node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Local EaglerXServer runtime state - generated the first time the server runs.
+server/runtime/
+server/EaglerXServer.jar
+server/plugins.txt
+server/*.jar
+server/logs/
+server/world/
+server/world_nether/
+server/world_the_end/
+server/banned-*.json
+server/ops.json
+server/whitelist.json
+server/usercache.json
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# dev-only, never committed (matches the symlink form too)
+node_modules
