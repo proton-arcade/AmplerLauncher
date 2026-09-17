@@ -73,6 +73,20 @@ function saveStore(patch) {
     } catch (e) { /* non-fatal */ }
 }
 
+/* The bar is made of divs and list items, which a keyboard cannot reach on its
+   own. Every control that has a click handler gets this too, so Tab + Enter (or
+   Space) does what the mouse does. Events from children are ignored: that keeps
+   a space typed inside the username field a space. */
+function activateOnKey(node, action) {
+    if (!node) return;
+    node.addEventListener('keydown', function (event) {
+        if (event.target !== node) return;
+        if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'Spacebar') return;
+        event.preventDefault();
+        action(event);
+    });
+}
+
 function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -117,6 +131,8 @@ function showView(name) {
     // The selected tab in the header, and the bar that matches it.
     el('header1').className = skins ? 'headerButtons' : 'headerButtonSelected';
     el('header2').className = skins ? 'headerButtonSelected' : 'headerButtons';
+    el('header1').setAttribute('aria-selected', skins ? 'false' : 'true');
+    el('header2').setAttribute('aria-selected', skins ? 'true' : 'false');
     el('mainPage').classList.toggle('skinsMode', skins);
 
     closeDropdown();
@@ -141,10 +157,17 @@ function buildDropdown() {
         row.style.bottom = ((list.length - 1 - index) * 5) + 'vw';
         row.style.opacity = client.bundled ? '1' : '0.55';
         row.setAttribute('data-client', client.id);
+        row.setAttribute('role', 'option');
+        row.setAttribute('aria-selected', 'false');
+        row.tabIndex = 0;
         row.onclick = function () {
             selectClient(client.id);
             closeDropdown();
         };
+        activateOnKey(row, function () {
+            selectClient(client.id);
+            closeDropdown();
+        });
         row.innerHTML =
             '<div class="dropdownOption">' +
                 '<div class="centeredIcon"><img src="' + escapeHtml(client.icon) + '" style="width: 2.5vw;" alt=""></div>' +
@@ -162,6 +185,9 @@ function selectClient(id, silent) {
     if (!client) return;
 
     state.clientId = id;
+    Array.prototype.forEach.call(el('dropdn').children, function (row) {
+        row.setAttribute('aria-selected', row.getAttribute('data-client') === id ? 'true' : 'false');
+    });
     el('gametitle').innerHTML = escapeHtml(client.title);
     el('gameversion').innerHTML = escapeHtml(client.version);
     el('gameicon').src = client.icon;
@@ -196,6 +222,7 @@ function dropdowntoggle() {
 function openDropdown() {
     el('dropdn').style.visibility = 'visible';
     el('dropdownuparrow').innerHTML = SVG_UP;
+    el('drop').setAttribute('aria-expanded', 'true');
 }
 
 function closeDropdown() {
@@ -203,6 +230,13 @@ function closeDropdown() {
     if (menu) menu.style.visibility = 'hidden';
     var arrow = el('dropdownuparrow');
     if (arrow) arrow.innerHTML = SVG_DOWN;
+    var drop = el('drop');
+    if (drop) {
+        drop.setAttribute('aria-expanded', 'false');
+        // if the keyboard was inside the list, do not leave focus stranded on a
+        // row that is no longer rendered
+        if (menu && menu.contains(document.activeElement)) drop.focus();
+    }
 }
 
 /* ------------------------------------------------------------------ *
@@ -265,6 +299,19 @@ function init() {
 
     var start = clientById(saved.clientId) || clients()[0];
     if (start) selectClient(start.id, true);
+
+    // Keyboard: the two tabs, the version selector and the username.
+    activateOnKey(el('header1'), function () { showView('play'); });
+    activateOnKey(el('header2'), function () { showView('skins'); });
+    activateOnKey(el('drop'), function () { dropdowntoggle(); });
+    activateOnKey(el('userbox'), function () { editUser(); });
+
+    // Escape closes the version list, wherever the focus happens to be.
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && el('dropdn').style.visibility === 'visible') {
+            closeDropdown();
+        }
+    });
 
     // Username editing
     var input = el('usernameinput');

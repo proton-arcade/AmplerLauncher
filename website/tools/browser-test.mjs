@@ -156,6 +156,83 @@ async function driveLauncher(label, url) {
     const dead = real.filter((h) => !existsSync(join(ROOT, h)));
     dead.length === 0 ? ok('every Play target exists on disk') : bad('dead Play targets: ' + dead.join(', '));
 
+    /* ---- the launcher works from a keyboard, with no mouse at all ---- */
+    {
+        await page.goto(url, { waitUntil: 'load' });
+        await new Promise((r) => setTimeout(r, 400));
+        const activeId = () => page.evaluate(() => document.activeElement && document.activeElement.id);
+        const tabTo = async (id, max = 12) => {
+            for (let i = 0; i < max; i++) {
+                await page.keyboard.press('Tab');
+                if (await page.evaluate((x) => document.activeElement && document.activeElement.id === x, id)) return true;
+            }
+            return false;
+        };
+
+        const gotTab = await tabTo('header2');
+        const ring = await page.evaluate(() => {
+            const cs = getComputedStyle(document.activeElement);
+            return cs.outlineStyle + ' ' + cs.outlineColor;
+        });
+        gotTab && /rgb\(0, 133, 66\)/.test(ring)
+            ? ok('Tab reaches the Skins tab and it shows a focus ring (' + ring + ')')
+            : bad('could not reach the Skins tab by keyboard (reached=' + gotTab + ', ring=' + ring + ')');
+
+        await page.keyboard.press('Enter');
+        await new Promise((r) => setTimeout(r, 700));
+        const viaKeyboard = await page.evaluate(() => ({
+            skinsShown: !document.getElementById('skinsview').hidden,
+            cards: document.querySelectorAll('#skingrid .skinCard').length,
+        }));
+        viaKeyboard.skinsShown
+            ? ok('Enter opens the skins page (' + viaKeyboard.cards + ' cards)')
+            : bad('Enter on the Skins tab did not open the skins page');
+
+        // from the tab to a download button, then start a download with Enter
+        let reachedButton = false;
+        for (let i = 0; i < 10 && !reachedButton; i++) {
+            await page.keyboard.press('Tab');
+            reachedButton = await page.evaluate(() =>
+                document.activeElement && document.activeElement.className === 'skinDownload');
+        }
+        reachedButton
+            ? ok('Tab reaches a download button (' + (await activeId() || 'button') + ')')
+            : bad('could not tab from the Skins tab into the grid');
+
+        // version selector by keyboard
+        await page.click('#header1');
+        await new Promise((r) => setTimeout(r, 300));
+        await page.evaluate(() => document.getElementById('drop').focus());
+        await page.keyboard.press('Enter');
+        await new Promise((r) => setTimeout(r, 300));
+        const opened = await page.evaluate(() => document.getElementById('dropdn').style.visibility);
+        await page.evaluate(() => document.querySelector('#dropdn .dropdownOptions[data-client="1.5.2"]').focus());
+        await page.keyboard.press('Enter');
+        await new Promise((r) => setTimeout(r, 300));
+        const picked = await page.evaluate(() => ({
+            version: document.getElementById('gameversion').textContent,
+            href: document.getElementById('playbutton').getAttribute('href'),
+            focusBack: document.activeElement.id,
+        }));
+        opened === 'visible' && picked.version === '1.5.2-sp2.01' && existsSync(join(ROOT, picked.href))
+            ? ok('the version list opens and picks a build by keyboard (' + picked.version + ')')
+            : bad('keyboard version picking failed: ' + JSON.stringify({ opened, picked }));
+
+        await page.keyboard.press('Escape');
+        const closed = await page.evaluate(() => document.getElementById('dropdn').style.visibility);
+        closed === 'hidden' ? ok('Escape closes the version list') : bad('Escape left the list open');
+
+        await page.evaluate(() => document.getElementById('userbox').focus());
+        await page.keyboard.press('Enter');
+        const editing = await page.evaluate(() => document.activeElement.id);
+        editing === 'usernameinput'
+            ? ok('Enter on the username opens the rename field')
+            : bad('keyboard rename did not open the field (focus went to ' + editing + ')');
+        await page.keyboard.press('Escape');
+        await page.goto(url, { waitUntil: 'load' });
+        await new Promise((r) => setTimeout(r, 400));
+    }
+
     /* ---- the username ---- */
     await page.click('#username');
     const editing = await page.evaluate(() => ({

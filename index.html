@@ -36,9 +36,11 @@
         <div id="gameheader" class="gameHeader">
             <p id="gameedition" class="currentGame bolded">Ampler Launcher</p>
             <div id="javatabs">
-                <ul class="gameTabs">
-                    <li id="header1" class="headerButtonSelected" onclick="showView('play')">Play</li>
-                    <li id="header2" class="headerButtons" onclick="showView('skins')">Skins</li>
+                <ul class="gameTabs" role="tablist">
+                    <li id="header1" class="headerButtonSelected" role="tab" aria-selected="true" tabindex="0"
+                        onclick="showView('play')">Play</li>
+                    <li id="header2" class="headerButtons" role="tab" aria-selected="false" tabindex="0"
+                        onclick="showView('skins')">Skins</li>
                 </ul>
             </div>
         </div>
@@ -101,7 +103,8 @@
              Skins page: the user, nothing else (see .skinsMode in style.css). -->
         <div class="gameSelection">
             <div class="versionSelector">
-                <div id="drop" class="dropdownSelector" onclick="dropdowntoggle()">
+                <div id="drop" class="dropdownSelector" role="button" tabindex="0" aria-haspopup="listbox"
+                    aria-expanded="false" aria-label="Choose a version" onclick="dropdowntoggle()">
                     <div style="display: flex; gap: 1vw;">
                         <div class="centeredIcon">
                             <img id="gameicon" src="./website/images/m-logo1.png" style="width: 2.5vw;" alt="">
@@ -118,7 +121,7 @@
             </div>
 
             <!-- Populated by js/index.js from js/clients.js -->
-            <div id="dropdn" class="dropdownMenu" style="visibility: hidden;"></div>
+            <div id="dropdn" class="dropdownMenu" role="listbox" style="visibility: hidden;"></div>
 
             <a id="playbutton" href="website/mc/1.12.2/index.html" target="_blank" rel="noopener">
                 <div id="mainbutton" class="playButton"></div>
@@ -126,7 +129,8 @@
 
             <!-- Click it to rename yourself. The name is saved locally and is
                  shown on every page of the launcher. -->
-            <div class="username centeredIcon bolded" id="userbox" onclick="editUser()" title="Click to change your username">
+            <div class="username centeredIcon bolded" id="userbox" role="button" tabindex="0" aria-label="Your username"
+                onclick="editUser()" title="Click to change your username">
                 <p id="username" class="usernameText">Generic User</p>
                 <input id="usernameinput" class="usernameInput" type="text" maxlength="24" spellcheck="false"
                     autocomplete="off" placeholder="Username" onclick="event.stopPropagation()">

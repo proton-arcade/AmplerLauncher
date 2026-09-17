@@ -621,6 +621,30 @@ pre {
     display: block;
 }
 
+/* Keyboard focus. Only shown when the keyboard is what moved focus, so nothing
+   about the mouse look changes. */
+.headerButtons:focus-visible,
+.headerButtonSelected:focus-visible,
+.dropdownSelector:focus-visible,
+.dropdownOptions:focus-visible,
+.username:focus-visible {
+    outline: #008542 solid 0.16vw;
+    outline-offset: -0.16vw;
+    background-color: #353535;
+    color: white;
+    /* these elements transition everything else on hover, but a focus ring that
+       fades in is a focus ring you can miss - it arrives with the keyboard */
+    transition: none;
+}
+
+.usernameInput:focus-visible,
+.skinSearch input:focus-visible,
+.skinDownload:focus-visible,
+.skinTool:focus-visible {
+    outline: #008542 solid 0.16vw;
+    outline-offset: 0.1vw;
+}
+
 /* Skins page: the bar keeps the user, drops the version selector and Play. */
 .mainPage.skinsMode .versionSelector,
 .mainPage.skinsMode #dropdn,
@@ -631,6 +655,16 @@ pre {
 /* ------------------------------------------------------------------ *
  * Keyframes
  * ------------------------------------------------------------------ */
+
+/* Anyone who has asked the system to reduce motion gets the layours without the
+   drop-in animations. */
+@media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
 
 @keyframes drop {
     0% {

@@ -524,6 +524,50 @@ if (SKINS.length === 0) {
         assert(!d.getElementById('playview').hidden && d.getElementById('skinsview').hidden,
             'the Play tab comes straight back to the play page');
 
+        /* ---- keyboard: the launcher is reachable without a mouse ---- */
+        {
+            const key = (node, k) => node.dispatchEvent(new win.KeyboardEvent('keydown', { key: k, bubbles: true }));
+            const reachable = (id) => d.getElementById(id).getAttribute('tabindex') === '0';
+
+            assert(reachable('header1') && reachable('header2') && reachable('drop') && reachable('userbox'),
+                'the tabs, the version selector and the username are all reachable by Tab');
+            assert(d.querySelectorAll('#dropdn .dropdownOptions[tabindex="0"]').length === CLIENTS.length,
+                'every row in the version list is reachable by Tab');
+            assert(d.getElementById('header2').getAttribute('role') === 'tab' &&
+                   d.getElementById('dropdn').getAttribute('role') === 'listbox',
+                'the tabs and the version list carry their roles');
+
+            win.showView('play');
+            key(d.getElementById('header2'), 'Enter');
+            assert(!d.getElementById('skinsview').hidden && d.getElementById('playview').hidden,
+                'Enter on the Skins tab opens the skins page');
+            assert(d.getElementById('header2').getAttribute('aria-selected') === 'true' &&
+                   d.getElementById('header1').getAttribute('aria-selected') === 'false',
+                'the selected tab is marked for assistive tech');
+            key(d.getElementById('header1'), 'Enter');
+            assert(!d.getElementById('playview').hidden, 'Enter on the Play tab comes back');
+
+            key(d.getElementById('drop'), ' ');
+            assert(d.getElementById('dropdn').style.visibility === 'visible' &&
+                   d.getElementById('drop').getAttribute('aria-expanded') === 'true',
+                'Space opens the version list');
+            key(d.querySelector('#dropdn .dropdownOptions[data-client="1.5.2"]'), 'Enter');
+            assert(d.getElementById('gametitle').textContent === 'Older release' &&
+                   d.getElementById('dropdn').style.visibility === 'hidden',
+                'Enter on a row picks that build and closes the list');
+            assert(d.querySelector('#dropdn .dropdownOptions[data-client="1.5.2"]').getAttribute('aria-selected') === 'true',
+                'the picked build is marked as the selected option');
+
+            key(d.getElementById('drop'), 'Enter');
+            d.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            assert(d.getElementById('dropdn').style.visibility === 'hidden',
+                'Escape closes the version list');
+
+            key(d.getElementById('userbox'), 'Enter');
+            assert(d.getElementById('userbox').classList.contains('usernameEditing'),
+                'Enter on the username opens the rename field');
+        }
+
         /* ---- no leftover remote <link> in the shipped head ---- */
         const remoteLinks = [...d.querySelectorAll('link[href]')]
             .map((l) => l.getAttribute('href'))
