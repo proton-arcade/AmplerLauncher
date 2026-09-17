@@ -29,78 +29,87 @@
             <p id="naerror-text" style="color: goldenrod;">This feature hasn't been made yet.</p>
         </div>
     </div>
-    <div id="screenerror" class="error">
-        <div>
-            <p style="margin-left: 1vw;" class="bolded">ERROR!</p>
-            <p>Currently this screen resolution is buggy.</p>
-        </div>
-    </div>
 
-    <div class="sidebar" id="sidebar">
-        <div id="gtabs1" class="sidebarOptions" style="gap: 1vw;" onclick="openDiscord()">
-            <img src="./website/images/m-discord.png" alt="">
-            <div class="gTabsText"><p>Discord</p></div>
-        </div>
-        <div onclick="selectCategory('web')" id="gtabs2" style="font-weight: 700; border-left: #008542 solid 0.4vw;"
-             class="sidebarOptions">
-            <img src="./website/images/i-web.png" alt="">
-            <div class="gTabsText">
-                <p class="eaglercraftText"> EAGLERCRAFT : </p>
-                <p>Web Edition </p>
-            </div>
-        </div>
-        <div onclick="selectCategory('modded')" id="gtabs3" class="sidebarOptions">
-            <img src="./website/images/i-modded.png" alt="">
-            <div class="gTabsText">
-                <p class="eaglercraftText"> EAGLERCRAFT : </p>
-                <p>Modded Editions </p>
-            </div>
-        </div>
-        <div onclick="selectCategory('mobile')" id="gtabs4" class="sidebarOptions">
-            <img src="./website/images/i-controls.png" alt="">
-            <div class="gTabsText">
-                <p class="eaglercraftText"> EAGLERCRAFT : </p>
-                <p>Mobile/Controller </p>
-            </div>
-        </div>
-        <div id="gtabs5" class="sidebarOptions sidebarBottom" onclick="showCredits()">
-            <img src="./website/images/m-credits.png" alt=""><div class="gTabsText"><p> Credits</p></div>
-        </div>
-        <div id="gtabs6" class="sidebarOptions sidebarBottom" onclick="showOfflineStatus()">
-            <img src="./website/images/m-settings.png" alt=""><div class="gTabsText"><p> Offline status</p></div>
-        </div>
-        <div id="gtabs9" class="launcherVersion">
-            <p>v2.0.00-offline</p>
-        </div>
-    </div>
+    <div class="mainPage" id="mainPage">
 
-    <div class="mainPage">
+        <!-- ============================ Top bar ============================ -->
         <div id="gameheader" class="gameHeader">
-            <p id="gameedition" class="currentGame bolded">EAGLERCRAFT WEB EDITION</p>
+            <p id="gameedition" class="currentGame bolded">Ampler Launcher</p>
             <div id="javatabs">
-                <ul class="gameTabs">
-                    <li id="header1" class="headerButtonSelected">Play</li>
-                    <li id="header2" style="display: none;" class="headerButtons" onclick="errorNA('The Mods tab is not part of the offline build.')">Mods</li>
-                    <li id="header3" class="headerButtons" onclick="errorNA('The FAQ tab is not part of the offline build.')">FAQ</li>
-                    <li id="header4" class="headerButtons" onclick="errorNA('The Installations tab is not part of the offline build.')">Installations</li>
-                    <li id="header5" class="headerButtons" onclick="errorNA('The Skins tab is not part of the offline build.')">Skins</li>
-                    <li id="header6" class="headerButtons" onclick="errorNA('The Patch Notes tab is not part of the offline build.')">Patch Notes</li>
+                <ul class="gameTabs" role="tablist">
+                    <li id="header1" class="headerButtonSelected" role="tab" aria-selected="true" tabindex="0"
+                        onclick="showView('play')">Play</li>
+                    <li id="header2" class="headerButtons" role="tab" aria-selected="false" tabindex="0"
+                        onclick="showView('skins')">Skins</li>
                 </ul>
             </div>
         </div>
 
-        <div id="game-bg" class="gameBg" style="background-image: url(./website/images/web-edition.jpg);">
-            <div class="gameLogo">
-                <img id="game-header" src="./website/images/web-title.png" style="width: 40vw;" alt="eaglercraft">
+        <!-- ============================ Play page ============================ -->
+        <div id="playview" class="view">
+            <div id="game-bg" class="gameBg" style="background-image: url(./website/images/web-edition.jpg);">
+                <div class="gameLogo">
+                    <img id="game-header" src="./website/images/ampler-title.png" alt="Ampler Launcher">
+                </div>
             </div>
         </div>
 
-        <div id="gameselection" class="gameSelection">
+        <!-- ============================ Skins page ============================
+             Same background as the Play page, with the skin boxes sitting on
+             top of it and a small gap between them. The list is whatever is in
+             website/skins/: served, the folder listing itself is the list; off
+             disk, the folder picker or js/skins.js names them (see its header). -->
+        <div id="skinsview" class="view skinsView" hidden>
+            <div class="skinsScroll" id="skinsscroll">
+                <div class="skinsHead">
+                    <div class="skinsHeadText">
+                        <p class="skinsTitle bolded">Skins</p>
+                        <p class="skinsCount" id="skinscount"></p>
+                    </div>
+                    <div class="skinsTools">
+                        <div class="skinSearch">
+                            <input id="skinsearch" type="text" placeholder="Search skins" spellcheck="false"
+                                autocomplete="off" oninput="filterSkins(this.value)">
+                        </div>
+                        <div class="skinTool" id="addfolder" role="button" tabindex="0" aria-label="Add skin folder"
+                            onclick="pickSkinFolder()" title="Load skin folders from anywhere on this computer">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2" />
+                                <path d="M12 10.5v5" />
+                                <path d="M9.5 13h5" />
+                            </svg>
+                            <p>Add skin folder</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filled in by website/js/skinsview.js -->
+                <div id="skingrid" class="skinsGrid"></div>
+
+                <div id="skinempty" class="skinsEmpty" hidden>
+                    <p class="bolded">No skins yet.</p>
+                    <p>Add one by dropping its folder in <span class="mono">website/skins/</span>:</p>
+                    <pre class="mono">website/skins/my skin/
+   my skin.png            the skin
+   preview.my skin.png    the preview picture</pre>
+                    <p>That is the whole setup - reload and it is on this page. To remove a skin, delete its folder.</p>
+                    <p>Opened straight off disk? Press <span class="mono">Add skin folder</span> and pick the folder, or
+                        run <span class="mono">python3 website/tools/bake-skins.py</span> once and reload.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================ Bottom bar ===========================
+             Play page: version selector + Play + user.
+             Skins page: the user, nothing else (see .skinsMode in style.css). -->
+        <div class="gameSelection">
             <div class="versionSelector">
-                <div id="drop" class="dropdownSelector" onclick="dropdowntoggle()">
+                <div id="drop" class="dropdownSelector" role="button" tabindex="0" aria-haspopup="listbox"
+                    aria-expanded="false" aria-label="Choose a version" onclick="dropdowntoggle()">
                     <div style="display: flex; gap: 1vw;">
                         <div class="centeredIcon">
-                            <img id="gameicon" src="./website/images/m-logo1.png" style="width: 2.5vw;" alt="">
+                            <img id="gameicon" src="./website/images/m-logo1.png" alt="">
                         </div>
                         <div class="versionText">
                             <p id="gametitle" class="bolded">Latest release</p>
@@ -114,19 +123,40 @@
             </div>
 
             <!-- Populated by js/index.js from js/clients.js -->
-            <div id="dropdn" class="dropdownMenu" style="visibility: hidden;"></div>
+            <div id="dropdn" class="dropdownMenu" role="listbox" style="visibility: hidden;"></div>
 
             <a id="playbutton" href="website/mc/1.12.2/index.html" target="_blank" rel="noopener">
                 <div id="mainbutton" class="playButton"></div>
             </a>
 
-            <div class="username centeredIcon bolded">
+            <!-- Click it to rename yourself. The name is saved locally and is
+                 shown on every page of the launcher. -->
+            <div class="username centeredIcon bolded" id="userbox" role="button" tabindex="0" aria-label="Your username"
+                onclick="editUser()" title="Click to change your username">
                 <p id="username" class="usernameText">Generic User</p>
+                <input id="usernameinput" class="usernameInput" type="text" maxlength="24" spellcheck="false"
+                    autocomplete="off" placeholder="Username" onclick="event.stopPropagation()">
+                <svg class="userEditIcon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+                    <path d="M13.5 6.5l4 4" />
+                </svg>
             </div>
         </div>
     </div>
 
+    <!-- "Add skin folder": loads folders straight off the disk for this session,
+         so skins can be tried out without touching the repo. -->
+    <input id="skinfolder" type="file" accept="image/*" multiple hidden>
+
     <script src="./website/js/clients.js"></script>
+    <script src="./website/js/skins.js"></script>
+    <!-- Skins that are actually on disk. A plain placeholder file when the
+         launcher is opened off disk; generated from the folder listing by
+         website/tools/serve.py, so dropping a folder into website/skins/ is
+         the whole setup. See website/js/skins.js. -->
+    <script src="./website/skins/list.js"></script>
     <script src="./website/js/index.js"></script>
+    <script src="./website/js/skinsview.js"></script>
 </body>
 </html>

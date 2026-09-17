@@ -1,3 +1,19 @@
+/*
+ * Ampler Launcher - full screen layout.
+ *
+ * Shape of the page (see index.html):
+ *
+ *   body
+ *     .mainPage                 fills the window, no sidebar
+ *       .gameHeader             "Ampler Launcher" + the Play / Skins tabs
+ *       #playview   .view       background + logo + version selector / Play / user
+ *       #skinsview  .view       same background, skin boxes on top of it
+ *       .gameSelection          the little bottom bar
+ *
+ * Sizes are in vw so the whole thing scales with the window, exactly like the
+ * original launcher. The only hard-coded pixel values are 1px-ish borders.
+ */
+
 *, ::after, ::before {
     box-sizing: border-box;
 }
@@ -15,7 +31,7 @@ html {
 body {
     position: relative;
     display: flex;
-    align-items: flex-start;
+    flex-direction: column;
     background-color: #303030;
     margin: 0;
     line-height: inherit;
@@ -33,23 +49,39 @@ blockquote, dd, dl, figure, h1, h2, h3, h4, h5, h6, hr, p, pre {
     margin: 0;
 }
 
+pre {
+    font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+    white-space: pre;
+}
+
 .bolded {
     font-weight: 800;
 }
+
+.mono {
+    font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+    color: #7CFC98;
+}
+
+/* ------------------------------------------------------------------ *
+ * Toast (still used for the "not bundled" notice)
+ * ------------------------------------------------------------------ */
 
 .error {
     display: none;
     position: absolute;
     right: 0;
-    z-index: 1;
+    top: 0;
+    z-index: 40;
     padding: 0.5vw 1vw;
     margin: 1vw 0.5vw;
-    background: rgba(0, 0, 0, 0.25);
+    background: rgba(0, 0, 0, 0.65);
     border-radius: 2.5vw;
     font-style: italic;
     transition: 0.3s;
     animation: drop .5s linear forwards;
     font-size: 1.5vw;
+    max-width: 45vw;
 }
 
 #naerror {
@@ -58,24 +90,32 @@ blockquote, dd, dl, figure, h1, h2, h3, h4, h5, h6, hr, p, pre {
     border: gold solid 0.2vw;
 }
 
-#screenerror {
-    right: 35%;
-    padding: 0.25vw 4vw;
-    display: none;
-    color: darkred;
-    font-size: 1vw;
-    border: red solid 0.1vw;
+/* ------------------------------------------------------------------ *
+ * Shell
+ * ------------------------------------------------------------------ */
+
+.mainPage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    color: white;
+    background-color: #1e1e1e;
+}
+
+.gameHeader {
+    flex: 0 0 auto;
+    padding: 1.8vw 1.8vw 0;
+}
+
+.currentGame {
+    font-size: 1.2vw;
 }
 
 .gameTabs {
     display: flex;
     align-items: center;
-}
-
-.mainPage {
-    width: 100%;
-    color: white;
-    background-color: #1e1e1e;
 }
 
 .headerButtons {
@@ -101,33 +141,305 @@ blockquote, dd, dl, figure, h1, h2, h3, h4, h5, h6, hr, p, pre {
     line-height: 1.7vw;
 }
 
+.view {
+    position: relative;
+    flex: 1 1 auto;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.view[hidden] {
+    display: none !important;
+}
+
+/* ------------------------------------------------------------------ *
+ * Play page
+ * ------------------------------------------------------------------ */
+
 .gameBg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    position: absolute;
     display: flex;
-    width: 100%;
-    height: 100%;
     justify-content: center;
 }
 
 .gameLogo {
     position: absolute;
-    left: 23%;
+    top: 7%;
+    left: 0;
     width: 100%;
-    top: 6%;
+    display: flex;
+    justify-content: center;
     animation: drop .5s linear forwards;
-    color: purple;
 }
 
-.gameSelection {
+#game-header {
+    width: 40vw;
+    max-width: 76%;
+    image-rendering: -webkit-optimize-contrast;
+}
+
+/* ------------------------------------------------------------------ *
+ * Skins page - same background as the Play page, skin boxes on top
+ * ------------------------------------------------------------------ */
+
+.skinsView {
+    background-image: url(../images/web-edition.jpg);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+/* keeps the boxes readable over the screenshot */
+.skinsView::before {
+    content: '';
     position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
     bottom: 0;
+    background: rgba(10, 10, 10, 0.66);
+}
+
+.skinsScroll {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 1.1vw 1.6vw 2vw;
+    scrollbar-color: #008542 #131313;
+}
+
+.skinsScroll::-webkit-scrollbar {
+    width: 0.9vw;
+}
+
+.skinsScroll::-webkit-scrollbar-track {
+    background: #131313;
+}
+
+.skinsScroll::-webkit-scrollbar-thumb {
+    background: #008542;
+}
+
+.skinsHead {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1vw;
+    padding-bottom: 0.8vw;
+    margin-bottom: 1vw;
+    border-bottom: #2f2f2f solid 1px;
+}
+
+.skinsTitle {
+    font-size: 1.35vw;
+    line-height: 1.6vw;
+}
+
+.skinsCount {
+    font-size: 0.85vw;
+    color: #b9b9b9;
+}
+
+.skinsTools {
+    display: flex;
+    align-items: center;
+    gap: 0.6vw;
+}
+
+.skinSearch input {
+    width: 16vw;
+    padding: 0.45vw 0.9vw;
+    font-family: inherit;
+    font-size: 0.9vw;
+    color: white;
+    background-color: rgba(19, 19, 19, 0.85);
+    border: #353535 solid 1px;
+    border-radius: 0.3vw;
+    outline: none;
+    transition: 0.2s;
+}
+
+.skinSearch input:focus {
+    border-color: #008542;
+}
+
+.skinSearch input::placeholder {
+    color: #8a8a8a;
+}
+
+.skinTool {
+    display: flex;
+    align-items: center;
+    gap: 0.5vw;
+    padding: 0.4vw 0.9vw;
+    font-size: 0.9vw;
+    color: #e6e6e6;
+    background-color: rgba(19, 19, 19, 0.85);
+    border: #353535 solid 1px;
+    border-radius: 0.3vw;
+    transition: 0.2s;
+}
+
+.skinTool svg {
+    width: 1.15vw;
+    height: 1.15vw;
+}
+
+.skinTool:hover {
+    cursor: pointer;
+    color: white;
+    background-color: #008542;
+    border-color: #008542;
+}
+
+.skinsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(12.5vw, 1fr));
+    gap: 1vw;
+}
+
+.skinCard {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: rgba(18, 18, 18, 0.82);
+    border-top: #008542 solid 0.2vw;
+    border-radius: 0.25vw;
+    box-shadow: 0 0.15vw 0.6vw rgba(0, 0, 0, 0.5);
+    animation: drop .35s linear forwards;
+    transition: 0.2s;
+}
+
+.skinCard:hover {
+    background-color: rgba(28, 28, 28, 0.92);
+}
+
+.skinPreviewWrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 12.5vw;
+    background-color: rgba(0, 0, 0, 0.45);
+    background-image: radial-gradient(ellipse at 50% 120%, rgba(0, 133, 66, 0.22), transparent 70%);
+}
+
+.skinPreview {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+    -ms-interpolation-mode: nearest-neighbor;
+    display: block;
+}
+
+.skinPreviewCanvas {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+    -ms-interpolation-mode: nearest-neighbor;
+    display: block;
+}
+
+.skinCardMissing .skinPreviewWrap::after {
+    content: 'no preview';
+    position: absolute;
+    font-size: 0.8vw;
+    color: #8a8a8a;
+    font-style: italic;
+}
+
+.skinFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5vw;
+    padding: 0.45vw 0.6vw;
+    background-color: rgba(10, 10, 10, 0.75);
+    border-top: rgba(255, 255, 255, 0.06) solid 1px;
+}
+
+.skinName {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.9vw;
+    line-height: 1.3vw;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.skinDownload {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35vw;
+    color: white;
+    background-color: #008542;
+    border: none;
+    border-radius: 0.2vw;
+    transition: 0.15s;
+}
+
+.skinDownload svg {
+    width: 1.1vw;
+    height: 1.1vw;
+    display: block;
+}
+
+.skinDownload:hover {
+    cursor: pointer;
+    background-color: #00a854;
+    transform: scale(1.08);
+}
+
+.skinDownload:active {
+    transform: scale(0.95);
+}
+
+.skinsEmpty {
+    padding: 1.5vw;
+    font-size: 0.95vw;
+    line-height: 1.9vw;
+    color: #dcdcdc;
+    background-color: rgba(18, 18, 18, 0.82);
+    border-top: #008542 solid 0.2vw;
+    border-radius: 0.25vw;
+}
+
+.skinsEmpty pre {
+    margin: 0.6vw 0;
+    padding: 0.8vw 1vw;
+    font-size: 0.85vw;
+    line-height: 1.3vw;
+    color: #7CFC98;
+    background-color: rgba(0, 0, 0, 0.45);
+}
+
+/* ------------------------------------------------------------------ *
+ * Bottom bar
+ * ------------------------------------------------------------------ */
+
+.gameSelection {
+    position: relative;
+    flex: 0 0 auto;
     width: 100%;
     height: 4.5vw;
-    justify-content: space-around;
     display: flex;
+    align-items: center;
     background-color: #1e1e1e;
 }
 
@@ -161,9 +473,12 @@ blockquote, dd, dl, figure, h1, h2, h3, h4, h5, h6, hr, p, pre {
     width: 1.75vw;
 }
 
+/* Rows stack upward from the bar: bottom = (count-1-index) * 5vw is applied
+   to each row by js/index.js. */
 .dropdownMenu {
     position: absolute;
     left: 1vw;
+    bottom: 4.5vw;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -202,6 +517,13 @@ blockquote, dd, dl, figure, h1, h2, h3, h4, h5, h6, hr, p, pre {
     justify-content: center;
 }
 
+/* The version icons (bar and list) are sized here rather than inline, so the
+   phone rules in screensize.css can enlarge them without !important. */
+#gameicon,
+.dropdownOption img {
+    width: 2.5vw;
+}
+
 .versionText {
     margin-right: 4.25vw;
     display: grid;
@@ -210,9 +532,13 @@ blockquote, dd, dl, figure, h1, h2, h3, h4, h5, h6, hr, p, pre {
     font-size: 1.1vw;
 }
 
+/* Absolutely positioned inside the bar so it can poke a little above it,
+   exactly like the original launcher. The wrapping <a id="playbutton"> has no
+   box of its own - clicks on the image bubble up to it and follow the href. */
 .playButton {
     position: absolute;
-    left: 33%;
+    left: 50%;
+    margin-left: -10.75vw;
     bottom: 0.5vw;
     display: flex;
     align-items: center;
@@ -231,91 +557,121 @@ blockquote, dd, dl, figure, h1, h2, h3, h4, h5, h6, hr, p, pre {
     transform: scale(1.05);
 }
 
+#playbutton {
+    display: block;
+}
+
+/* ---------------- username: click to rename, saved locally ---------------- */
+
 .username {
     position: absolute;
-    bottom: 0;
-    right: 17vw;
     top: 0;
+    bottom: 0;
+    right: 2vw;
+    gap: 0.6vw;
+    padding: 0 1vw;
+    border-radius: 0.3vw;
+    transition: 0.2s;
 }
 
-.usernameText {
-    font-size: 1.35vw;
-}
-
-.sidebar {
-    position: relative;
-    float: left;
-    height: 100vh;
-    width: 18vw;
-    color: white;
-    background-color: #1e1e1e;
-}
-
-.eaglercraftText {
-    font-size: 1.1vw;
-}
-
-.sidebarOptions {
-    display: flex;
-    height: 5vw;
-    width: 100%;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 1.5vw;
-    padding-left: 1.5vw;
-    font-size: 1vw;
-    line-height: 1.5vw;
-    transition: 0.3s;
-}
-
-.sidebarOptions:hover {
+.username:hover {
     cursor: pointer;
     background-color: #353535;
 }
 
-.sidebarOptions.sidebarBottom {
-    position: absolute;
+.usernameText {
+    font-size: 1.35vw;
+    max-width: 30vw;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
-.launcherVersion {
-    position: absolute;
-    bottom: 0.25vw;
-    left: 0;
-    right: 0;
-    padding-left: 1.25vw;
-    z-index: 1;
-    font-size: 1.1vw;
-    color: #cccccc;
-}
-.gameHeader {    padding: 1.8vw 1.8vw 0;}
-
-.dropdown1 {bottom: 0;}
-.dropdown2 {bottom: 5vw;}
-.dropdown3 {bottom: 0vw;}
-.dropdown4 {bottom: 5vw; }
-.dropdown5 {bottom: 10vw;}
-.dropdown6 {bottom: 15vw;}
-.dropdown7 {bottom: 20vw;}
-.dropdown8 {bottom: 0;}
-.dropdown9 {bottom: 5vw;}
-.dropdown10 {bottom: 10vw;}
-.dropdown11 {bottom: 10vw;}
-.dropdown12 {bottom: 15vw;}
-.dropdown13 {bottom: 20vw;}
-
-.zoom-out {
-    animation: zoomed 0.2s linear forwards;
+.userEditIcon {
+    width: 1.1vw;
+    height: 1.1vw;
+    color: #9a9a9a;
+    opacity: 0;
+    transition: 0.2s;
 }
 
-.currentGame {
-    font-size: 1.2vw;
+.username:hover .userEditIcon {
+    opacity: 1;
 }
 
-#gtabs1 img {width: 3vw;}
-#gtabs2 img, #gtabs3 img, #gtabs4 img {width: 2.5vw;}
-#gtabs5 {bottom: 7.5vw;}
-#gtabs6 {bottom: 2.5vw;}
-#gtabs5 img, #gtabs6 img {width: 2vw;}
+.usernameInput {
+    display: none;
+    width: 18vw;
+    padding: 0.25vw 0.7vw 0.4vw;
+    font-family: inherit;
+    font-size: 1.35vw;
+    font-weight: 800;
+    text-align: right;
+    color: white;
+    background-color: #131313;
+    border: none;
+    border-bottom: #008542 solid 0.2vw;
+    border-radius: 0.25vw;
+    outline: none;
+}
+
+.usernameEditing {
+    background-color: #131313;
+}
+
+.usernameEditing .usernameText,
+.usernameEditing .userEditIcon {
+    display: none;
+}
+
+.usernameEditing .usernameInput {
+    display: block;
+}
+
+/* Keyboard focus. Only shown when the keyboard is what moved focus, so nothing
+   about the mouse look changes. */
+.headerButtons:focus-visible,
+.headerButtonSelected:focus-visible,
+.dropdownSelector:focus-visible,
+.dropdownOptions:focus-visible,
+.username:focus-visible {
+    outline: #008542 solid 0.16vw;
+    outline-offset: -0.16vw;
+    background-color: #353535;
+    color: white;
+    /* these elements transition everything else on hover, but a focus ring that
+       fades in is a focus ring you can miss - it arrives with the keyboard */
+    transition: none;
+}
+
+.usernameInput:focus-visible,
+.skinSearch input:focus-visible,
+.skinDownload:focus-visible,
+.skinTool:focus-visible {
+    outline: #008542 solid 0.16vw;
+    outline-offset: 0.1vw;
+}
+
+/* Skins page: the bar keeps the user, drops the version selector and Play. */
+.mainPage.skinsMode .versionSelector,
+.mainPage.skinsMode #dropdn,
+.mainPage.skinsMode #playbutton {
+    display: none;
+}
+
+/* ------------------------------------------------------------------ *
+ * Keyframes
+ * ------------------------------------------------------------------ */
+
+/* Anyone who has asked the system to reduce motion gets the layours without the
+   drop-in animations. */
+@media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
 
 @keyframes drop {
     0% {
