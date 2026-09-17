@@ -14,10 +14,12 @@
  *      and every bundled:true client in js/clients.js exists on disk.
  *
  *   3. THE LAUNCHER ACTUALLY WORKS.
- *      index.html is loaded in jsdom with js/clients.js and js/index.js
- *      executed against it. Every sidebar tab is selected and every dropdown
- *      row is clicked; the Play button's href must resolve to a file that
- *      exists, or the row must be flagged not-bundled.
+ *      index.html is loaded in jsdom with js/clients.js, js/skins.js,
+ *      js/index.js and js/skinsview.js executed against it. The version
+ *      dropdown is driven row by row (every Play href must resolve to a file
+ *      that exists), the Play and Skins pages are switched between, every skin
+ *      card is checked against website/skins/, and the username is renamed and
+ *      read back out of localStorage.
  *
  * Then, if python3 is available, tools/serve.py is booted and each page is
  * requested over HTTP to confirm it returns 200 with the isolation headers.
@@ -106,7 +108,7 @@ const FETCHERS = [
     /<video[^>]+src=["']([^"']+)["']/gi,
     /<audio[^>]+src=["']([^"']+)["']/gi,
     /<embed[^>]+src=["']([^"']+)["']/gi,
-    /url\(\s*['"]?([^'")]+)['"]?\s*\)/gi,
+    /(?<![A-Za-z0-9_$-])url\(\s*['"]?([^'")]+)['"]?\s*\)/gi,
     /\bfetch\(\s*['"]([^'"]+)['"]/gi,
     /\bnew\s+Worker\(\s*['"]([^'"]+)['"]/gi,
     /\bnew\s+SharedWorker\(\s*['"]([^'"]+)['"]/gi,
@@ -183,7 +185,7 @@ const LOCAL_REFS = [
     /<script[^>]+src=["']([^"']+)["']/gi,
     /<link[^>]+href=["']([^"']+)["']/gi,
     /<img[^>]+src=["']([^"']+)["']/gi,
-    /url\(\s*['"]?([^'")]+)['"]?\s*\)/gi,
+    /(?<![A-Za-z0-9_$-])url\(\s*['"]?([^'")]+)['"]?\s*\)/gi,
 ];
 
 let checkedRefs = 0, brokenRefs = 0;
@@ -213,19 +215,24 @@ if (brokenRefs === 0) ok(checkedRefs + ' local references all resolve on disk');
  * 3. Manifest agrees with disk, and the launcher drives it correctly
  * ------------------------------------------------------------------ */
 
-head('3. Launcher renders and every Play button goes somewhere real');
+head('3. Manifests agree with disk, and the launcher drives them');
 
 const clientsSrc = readFileSync(join(ROOT, 'website/js/clients.js'), 'utf8');
 const ctx = { window: {} };
 new Function('window', clientsSrc)(ctx.window);
 const CLIENTS = ctx.window.AMPLER_CLIENTS;
-const CATEGORIES = ctx.window.AMPLER_CATEGORIES;
+
+const skinsSrc = readFileSync(join(ROOT, 'website/js/skins.js'), 'utf8');
+const sctx = { window: {} };
+new Function('window', skinsSrc)(sctx.window);
+const SKINS = (sctx.window.AMPLER_SKINS || []).map((s) => (typeof s === 'string' ? s : s.name));
+const SKIN_FOLDER = join(ROOT, (sctx.window.AMPLER_SKIN_DIR || './website/skins/').replace(/^\.\//, ''));
+const SKIN_PREFIX = sctx.window.AMPLER_SKIN_PREVIEW_PREFIX || 'preview.';
 
 if (!Array.isArray(CLIENTS) || CLIENTS.length === 0) {
     bad('js/clients.js did not define AMPLER_CLIENTS');
 } else {
-    ok('js/clients.js evaluates: ' + CLIENTS.length + ' clients, ' +
-       Object.keys(CATEGORIES).length + ' categories');
+    ok('js/clients.js evaluates: ' + CLIENTS.length + ' builds');
 
     const bundled = CLIENTS.filter((c) => c.bundled);
     let missing = 0;
@@ -233,7 +240,7 @@ if (!Array.isArray(CLIENTS) || CLIENTS.length === 0) {
         const p = join(ROOT, c.path);
         if (!existsSync(p)) { missing++; bad('bundled client missing from disk: ' + c.id + ' -> ' + c.path); }
     }
-    if (missing === 0) ok(bundled.length + '/' + CLIENTS.length + ' bundled clients exist on disk');
+    if (missing === 0) ok(bundled.length + '/' + CLIENTS.length + ' bundled builds exist on disk');
 
     // Each bundled build must be self-contained too.
     let dirty = 0;
@@ -277,8 +284,38 @@ if (!Array.isArray(CLIENTS) || CLIENTS.length === 0) {
         else
             bad('file:// guard detector would miss the old gate - the check is vacuous');
     }
+}
 
-    /* ---- jsdom: actually run the launcher ---- */
+/* ------------------------------------------------------------------ *
+ * The skins page is a folder listing: js/skins.js must agree with disk
+ * ------------------------------------------------------------------ */
+
+if (SKINS.length === 0) {
+    bad('js/skins.js lists no skins');
+} else {
+    ok('js/skins.js evaluates: ' + SKINS.length + ' skins (' + SKINS.join(', ') + ')');
+
+    let skinProblems = 0;
+    for (const name of SKINS) {
+        const dir = join(SKIN_FOLDER, name);
+        if (!existsSync(dir)) { skinProblems++; bad('skin folder missing: website/skins/' + name + '/'); continue; }
+        for (const f of [name + '.png', SKIN_PREFIX + name + '.png']) {
+            if (!existsSync(join(dir, f))) { skinProblems++; bad('missing ' + f + ' in website/skins/' + name + '/'); }
+        }
+    }
+    if (skinProblems === 0)
+        ok('every skin has its folder, its <name>.png and its ' + SKIN_PREFIX + '<name>.png');
+
+    // A folder dropped in by hand must not be silently ignored.
+    const foldersOnDisk = readdirSync(SKIN_FOLDER).filter((n) => statSync(join(SKIN_FOLDER, n)).isDirectory());
+    const unlisted = foldersOnDisk.filter((n) => !SKINS.includes(n));
+    unlisted.length === 0
+        ? ok('no skin folder on disk is missing from js/skins.js')
+        : bad('skin folder not listed in js/skins.js: ' + unlisted.join(', '));
+}
+
+/* ---- jsdom: actually run the launcher ---- */
+{
     let JSDOM = null;
     try { JSDOM = (await import('jsdom')).JSDOM; } catch { /* optional */ }
 
@@ -291,54 +328,118 @@ if (!Array.isArray(CLIENTS) || CLIENTS.length === 0) {
         win.open = () => null;                       // no popups in test
         win.console.clear = () => {};
         win.eval(readFileSync(join(ROOT, 'website/js/clients.js'), 'utf8'));
+        win.eval(readFileSync(join(ROOT, 'website/js/skins.js'), 'utf8'));
         win.eval(readFileSync(join(ROOT, 'website/js/index.js'), 'utf8'));
+        win.eval(readFileSync(join(ROOT, 'website/js/skinsview.js'), 'utf8'));
 
         const d = win.document;
         const assert = (cond, msg) => (cond ? ok(msg) : bad(msg));
 
-        assert(typeof win.selectCategory === 'function' && typeof win.buildDropdown === 'function',
-            'index.js executed and exported its API');
+        assert(typeof win.showView === 'function' && typeof win.selectClient === 'function' &&
+               typeof win.setUsername === 'function' && typeof win.renderSkins === 'function',
+            'index.js + skinsview.js executed and exported their API');
 
-        assert(d.getElementById('gameicon').getAttribute('src') !== null,
-            'boot ran: default client selected (' +
-            d.getElementById('gametitle').textContent + ' / ' +
-            d.getElementById('gameversion').textContent + ')');
+        /* ---- the shell ---- */
+        assert(d.getElementById('gameedition').textContent.trim() === 'Ampler Launcher',
+            'header reads "Ampler Launcher"');
+        const tabs = [...d.querySelectorAll('#javatabs li')].map((n) => n.textContent.trim()).join(', ');
+        assert(tabs === 'Play, Skins', 'top nav holds only Play and Skins (' + tabs + ')');
+        assert(!d.querySelector('.sidebar'), 'the sidebar is gone from the markup');
 
+        /* ---- play page ---- */
+        assert(!d.getElementById('playview').hidden && d.getElementById('skinsview').hidden,
+            'boots on the Play page');
         const bootHref = d.getElementById('playbutton').getAttribute('href');
         assert(existsSync(join(ROOT, bootHref)),
             'initial Play button href resolves on disk (' + bootHref + ')');
 
-        let rowsClicked = 0, deadLinks = 0;
-        for (const cat of Object.keys(CATEGORIES)) {
-            win.selectCategory(cat);
-            const rows = [...d.querySelectorAll('#dropdn .dropdownOptions')];
-            const expected = CLIENTS.filter((c) => c.category === cat).length;
-            assert(rows.length === expected,
-                'category "' + cat + '" lists ' + rows.length + ' rows (expected ' + expected + ')');
+        const rows = [...d.querySelectorAll('#dropdn .dropdownOptions')];
+        assert(rows.length === CLIENTS.length,
+            'version dropdown lists all ' + CLIENTS.length + ' builds');
 
-            for (const row of rows) {
-                row.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
-                rowsClicked++;
-                const id = row.getAttribute('data-client');
-                const client = CLIENTS.find((c) => c.id === id);
-                const href = d.getElementById('playbutton').getAttribute('href');
-                if (client.bundled) {
-                    if (!existsSync(join(ROOT, href))) { deadLinks++; bad('dead Play link for ' + id + ': ' + href); }
-                } else if (href !== '#') {
-                    deadLinks++; bad('not-bundled client ' + id + ' exposes href ' + href + ' instead of "#"');
-                }
+        let deadLinks = 0;
+        for (const row of rows) {
+            const id = row.getAttribute('data-client');
+            const client = CLIENTS.find((c) => c.id === id);
+            row.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+            const href = d.getElementById('playbutton').getAttribute('href');
+            if (client.bundled) {
+                if (!existsSync(join(ROOT, href))) { deadLinks++; bad('dead Play link for ' + id + ': ' + href); }
+            } else if (href !== '#') {
+                deadLinks++; bad('not-bundled client ' + id + ' exposes href ' + href + ' instead of "#"');
             }
         }
-        if (deadLinks === 0) ok('clicked all ' + rowsClicked + ' dropdown rows: 0 dead Play links');
+        if (deadLinks === 0) ok('clicked all ' + rows.length + ' dropdown rows: 0 dead Play links');
 
         // The dropdown must stack, not pile every row at bottom:0.
-        win.selectCategory('web');
         const bottoms = [...d.querySelectorAll('#dropdn .dropdownOptions')]
             .map((r) => r.style.bottom).filter(Boolean);
         assert(new Set(bottoms).size === bottoms.length,
             'dropdown rows are stacked at distinct offsets (' + bottoms.join(', ') + ')');
 
-        // No leftover remote <link> in the shipped head.
+        /* ---- username: click, type, saved ---- */
+        assert(d.getElementById('username').textContent === 'Generic User',
+            'the username starts out as "Generic User"');
+        win.setUsername('Steve', true);
+        assert(d.getElementById('username').textContent === 'Steve',
+            'clicking the user and typing changes the name');
+        assert(JSON.parse(win.localStorage.getItem('ampler.offline.v2')).username === 'Steve',
+            'the new name is saved locally (survives a reload)');
+        win.setUsername('   ', true);
+        assert(d.getElementById('username').textContent === 'Generic User',
+            'an empty name falls back to "Generic User" instead of saving a blank');
+        win.setUsername('n'.repeat(40), false);
+        assert(d.getElementById('username').textContent.length === 24,
+            'a very long name is capped at 24 characters');
+        win.setUsername('Steve', true);
+
+        /* ---- skins page ---- */
+        win.showView('skins');
+        assert(d.getElementById('playview').hidden && !d.getElementById('skinsview').hidden,
+            'the Skins tab swaps the page to the skins grid');
+        assert(d.getElementById('mainPage').classList.contains('skinsMode'),
+            'the skins page drops the Play button and the version selector');
+        assert(d.getElementById('username').textContent === 'Steve',
+            'the username stays visible on the skins page');
+
+        const skinsView = d.getElementById('skinsview');
+        assert(!/ampler-title|web-title|gameLogo/.test(skinsView.innerHTML),
+            'the skins page carries no logo');
+        assert(!/<a\b/i.test(skinsView.innerHTML), 'the skins page carries no Play link');
+
+        const cards = [...d.querySelectorAll('#skingrid .skinCard')];
+        assert(cards.length === SKINS.length,
+            'the grid shows every skin in js/skins.js (' + cards.length + ')');
+
+        let cardProblems = 0;
+        for (const card of cards) {
+            const name = card.getAttribute('data-skin-name');
+            const url = decodeURIComponent((card.getAttribute('data-skin-url') || '').replace(/^\.\//, ''));
+            const img = card.querySelector('img');
+            const label = card.querySelector('.skinName');
+            const button = card.querySelector('.skinDownload');
+            if (!existsSync(join(ROOT, url))) { cardProblems++; bad('download target missing for ' + name + ': ' + url); }
+            if (!img || !existsSync(join(ROOT, decodeURIComponent(img.getAttribute('src').replace(/^\.\//, ''))))) {
+                cardProblems++; bad('preview image missing for ' + name);
+            }
+            if (!label || label.textContent !== name) { cardProblems++; bad('name not shown for ' + name); }
+            if (!button) { cardProblems++; bad('no download button for ' + name); }
+        }
+        if (cardProblems === 0)
+            ok('all ' + cards.length + ' cards: preview on top, name bottom left, download bottom right');
+
+        // the download hands back the skin file itself, unmodified
+        const first = cards[0];
+        const firstUrl = decodeURIComponent((first.getAttribute('data-skin-url') || '').replace(/^\.\//, ''));
+        const onDisk = readFileSync(join(ROOT, firstUrl));
+        assert(onDisk.length > 0 && (onDisk[0] === 0x89 || onDisk[0] === 0xFF),
+            'the download button points at the real skin file (' + firstUrl + ')');
+
+        win.showView('play');
+        assert(!d.getElementById('playview').hidden && d.getElementById('skinsview').hidden,
+            'the Play tab comes straight back to the play page');
+
+        /* ---- no leftover remote <link> in the shipped head ---- */
         const remoteLinks = [...d.querySelectorAll('link[href]')]
             .map((l) => l.getAttribute('href'))
             .filter((h) => /^https?:/i.test(h));
@@ -355,17 +456,23 @@ if (!Array.isArray(CLIENTS) || CLIENTS.length === 0) {
         let bootError = null;
         try {
             fwin.eval(readFileSync(join(ROOT, 'website/js/clients.js'), 'utf8'));
+            fwin.eval(readFileSync(join(ROOT, 'website/js/skins.js'), 'utf8'));
             fwin.eval(readFileSync(join(ROOT, 'website/js/index.js'), 'utf8'));
+            fwin.eval(readFileSync(join(ROOT, 'website/js/skinsview.js'), 'utf8'));
         } catch (e) { bootError = e; }
         const fd = fwin.document;
 
         assert(bootError === null,
             'boots from file:// with no exception' + (bootError ? ': ' + bootError.message : ''));
-        assert(fd.querySelectorAll('#dropdn .dropdownOptions').length ===
-               CLIENTS.filter((c) => c.category === 'web').length,
+        assert(fd.querySelectorAll('#dropdn .dropdownOptions').length === CLIENTS.length,
             'file:// boot still builds the version dropdown');
         assert(existsSync(join(ROOT, fd.getElementById('playbutton').getAttribute('href'))),
             'file:// boot Play button resolves on disk');
+        fwin.showView('skins');
+        assert(fd.querySelectorAll('#skingrid .skinCard').length === SKINS.length,
+            'file:// boot builds the skins grid too');
+        assert(fd.getElementById('username').textContent === 'Generic User',
+            'file:// boot falls back to "Generic User" when localStorage is unavailable');
         assert(!fd.getElementById('filewarning'),
             'no stale file:// warning element left in the markup');
         assert(!readFileSync(join(ROOT, 'website/js/index.js'), 'utf8').includes('filewarning'),
@@ -402,9 +509,14 @@ if (!pythonAvailable()) {
         bad('server did not announce itself within 5s');
     } else {
         const base = 'http://127.0.0.1:' + port + '/';
-        const targets = ['index.html', 'website/css/style.css', 'website/css/fonts.css', 'website/js/index.js',
-            'website/js/clients.js', 'website/fonts/roboto-latin-400-normal.woff2',
-            ...CLIENTS.filter((c) => c.bundled).map((c) => c.path)];
+        const targets = ['index.html', 'website/css/style.css', 'website/css/fonts.css',
+            'website/js/index.js', 'website/js/clients.js', 'website/js/skins.js', 'website/js/skinsview.js',
+            'website/fonts/roboto-latin-400-normal.woff2',
+            ...CLIENTS.filter((c) => c.bundled).map((c) => c.path),
+            ...SKINS.flatMap((n) => {
+                const dir = 'website/skins/' + encodeURIComponent(n) + '/' + encodeURIComponent(n);
+                return [dir + '.png', dir.replace(/[^/]+$/, SKIN_PREFIX + '$&') + '.png'];
+            })];
 
         for (const t of targets) {
             try {

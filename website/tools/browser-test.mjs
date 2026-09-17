@@ -8,7 +8,11 @@
  *   A. The launcher works when opened straight off disk (file://), with no
  *      server running, and it issues ZERO network requests.
  *   B. The same holds over http:// when the optional server IS running.
- *   C. Each bundled game build actually loads and starts under file://.
+ *   C. The Play page and the Skins page both behave: every dropdown row goes
+ *      somewhere real, the skins grid matches website/skins/, the username can
+ *      be renamed and is remembered, and the skins page shows no logo, no Play
+ *      button and no version selector.
+ *   D. Each bundled game build actually loads and starts under file://.
  *
  * Browser resolution, in order:
  *   1. $BROWSER_PATH
@@ -80,6 +84,12 @@ const ctx = {};
 new Function('window', clientsSrc)(ctx);
 const BUNDLED = ctx.AMPLER_CLIENTS.filter((c) => c.bundled);
 
+// The skins manifest, so the grid can be checked against it too.
+const skinsSrc = readFileSync(join(ROOT, 'website/js/skins.js'), 'utf8');
+const sctx = {};
+new Function('window', skinsSrc)(sctx);
+ctx.AMPLER_SKINS = (sctx.AMPLER_SKINS || []).map((s) => (typeof s === 'string' ? s : s.name));
+
 /* A request counts as "leaving the machine" unless it is a local file, a
    loopback URL, or an in-page data:/blob: URI. */
 function isLocal(url, pageIsFile) {
@@ -112,31 +122,126 @@ async function driveLauncher(label, url) {
 
     await page.goto(url, { waitUntil: 'load', timeout: 60000 });
 
+    const heading = await page.$eval('#gameedition', (n) => n.textContent.trim());
+    heading === 'Ampler Launcher'
+        ? ok('header reads "Ampler Launcher"')
+        : bad('header reads "' + heading + '"');
+
+    const tabs = await page.$$eval('#javatabs li', (n) => n.map((x) => x.textContent.trim()));
+    tabs.join('/') === 'Play/Skins' ? ok('top nav is just ' + tabs.join(' + ')) : bad('top nav: ' + tabs.join(', '));
+
     const rows = await page.$$eval('#dropdn .dropdownOptions', (n) => n.length);
-    const expectedAtBoot = ctx.AMPLER_CLIENTS.filter((c) => c.category === 'web').length;
-    rows === expectedAtBoot
-        ? ok('version dropdown rendered ' + rows + ' rows for the default "web" category')
-        : bad('dropdown rendered ' + rows + ' rows, expected ' + expectedAtBoot);
+    rows === ctx.AMPLER_CLIENTS.length
+        ? ok('version dropdown rendered ' + rows + ' rows')
+        : bad('dropdown rendered ' + rows + ' rows, expected ' + ctx.AMPLER_CLIENTS.length);
 
-    const heading = await page.$eval('#gameedition', (n) => n.textContent);
-    ok('booted into "' + heading.trim() + '"');
-
-    // Click every sidebar tab and every dropdown row, like a user would.
-    let playTargets = [];
-    for (const tab of ['gtabs2', 'gtabs3', 'gtabs4']) {
-        await page.click('#' + tab);
-        const n = await page.$$eval('#dropdn .dropdownOptions', (x) => x.length);
-        for (let i = 0; i < n; i++) {
-            await page.click('#dropdn .dropdownOptions:nth-child(' + (i + 1) + ')');
-            playTargets.push(await page.$eval('#playbutton', (a) => a.getAttribute('href')));
-        }
+    // Click every dropdown row, like a user would.
+    const playTargets = [];
+    for (let i = 0; i < rows; i++) {
+        await page.click('#dropdn .dropdownOptions:nth-child(' + (i + 1) + ')');
+        playTargets.push(await page.$eval('#playbutton', (a) => a.getAttribute('href')));
     }
     const real = playTargets.filter((h) => h && h !== '#');
-    ok('clicked 3 tabs / ' + playTargets.length + ' rows; ' + real.length +
-       ' resolve to a build, ' + (playTargets.length - real.length) + ' correctly inert');
-
+    ok('clicked ' + playTargets.length + ' rows; ' + real.length + ' resolve to a build, ' +
+       (playTargets.length - real.length) + ' correctly inert');
     const dead = real.filter((h) => !existsSync(join(ROOT, h)));
     dead.length === 0 ? ok('every Play target exists on disk') : bad('dead Play targets: ' + dead.join(', '));
+
+    /* ---- the username ---- */
+    await page.click('#username');
+    const editing = await page.evaluate(() => ({
+        visible: getComputedStyle(document.getElementById('usernameinput')).display !== 'none',
+        focused: document.activeElement === document.getElementById('usernameinput'),
+    }));
+    editing.visible && editing.focused
+        ? ok('clicking the user opens the name field')
+        : bad('the name field did not open (visible=' + editing.visible + ' focused=' + editing.focused + ')');
+
+    await page.evaluate(() => {
+        const i = document.getElementById('usernameinput');
+        i.value = 'Arena Test';
+        i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    const renamed = await page.$eval('#username', (n) => n.textContent);
+    renamed === 'Arena Test' ? ok('the name can be changed') : bad('rename gave "' + renamed + '"');
+    await page.reload({ waitUntil: 'load' });
+    const kept = await page.$eval('#username', (n) => n.textContent);
+    kept === 'Arena Test' ? ok('the name is remembered after a reload') : bad('the name was lost: "' + kept + '"');
+
+    /* ---- the skins page ---- */
+    await page.click('#header2');
+    await new Promise((r) => setTimeout(r, 600));
+    const skins = await page.evaluate(() => {
+        const shown = (s) => {
+            const n = document.querySelector(s);
+            return !!(n && n.offsetParent && n.getBoundingClientRect().width);
+        };
+        return {
+            cards: [...document.querySelectorAll('#skingrid .skinCard')].map((c) => ({
+                name: (c.getAttribute('data-skin-name') || ''),
+                hasPreview: !!c.querySelector('.skinPreview'),
+                hasButton: !!c.querySelector('.skinDownload'),
+            })),
+            logoShown: shown('#playview .gameLogo'),
+            playShown: shown('#mainbutton'),
+            selectorShown: shown('#drop'),
+            userShown: shown('#username'),
+            user: document.querySelector('#username').textContent,
+            avatarCards: document.querySelectorAll('#skingrid .skinCard').length,
+        };
+    });
+
+    skins.cards.length === ctx.AMPLER_SKINS.length
+        ? ok('the skins page lists all ' + skins.cards.length + ' skins in js/skins.js')
+        : bad('skins page lists ' + skins.cards.length + ' of ' + ctx.AMPLER_SKINS.length + ' skins');
+    const badCards = skins.cards.filter((c) => !c.hasPreview || !c.hasButton || !c.name);
+    badCards.length === 0
+        ? ok('every card has a preview picture, a name and a download button')
+        : bad('incomplete cards: ' + badCards.map((c) => c.name).join(', '));
+    !skins.logoShown ? ok('the skins page shows no logo') : bad('a logo is still visible on the skins page');
+    !skins.playShown ? ok('the skins page shows no Play button') : bad('the Play button is still visible on the skins page');
+    !skins.selectorShown ? ok('the skins page shows no version selector') : bad('the version selector is still visible');
+    skins.userShown && skins.user === 'Arena Test'
+        ? ok('the skins page keeps the user ("' + skins.user + '")')
+        : bad('the user is missing on the skins page (' + skins.user + ')');
+
+    // Download one skin and check the bytes that come out match the file on disk.
+    const first = await page.$eval('#skingrid .skinCard', (c) => ({
+        url: c.getAttribute('data-skin-url'),
+        file: c.getAttribute('data-skin-file'),
+    }));
+    const diskPath = join(ROOT, decodeURIComponent(first.url.replace(/^\.\//, '')));
+    const disk = readFileSync(diskPath);
+    if (!url.startsWith('file:')) {
+        // Over http:// the button's href can be followed and compared byte for byte.
+        const fetched = await page.evaluate(async (u) => {
+            const r = await fetch(u);
+            const b = new Uint8Array(await r.arrayBuffer());
+            return { ok: r.ok, bytes: b.length, head: [b[0], b[1], b[2], b[3]] };
+        }, first.url);
+        fetched.ok && fetched.bytes === disk.length && fetched.head[0] === disk[0]
+            ? ok('the download button serves the skin file itself (' + first.file + ', ' + disk.length + ' B)')
+            : bad('download mismatch for ' + first.file + ': ' + JSON.stringify(fetched) + ' vs ' + disk.length + ' B');
+    } else {
+        // Off disk there is nothing to fetch, so check the file the button names
+        // is the real skin (PNG magic) and that the button carries it as a download.
+        const buttonDownload = await page.$eval('#skingrid .skinCard .skinDownload', () => true);
+        disk.length > 0 && disk[0] === 0x89 && disk[1] === 0x50 && buttonDownload
+            ? ok('the download button names the real skin file (' + first.file + ', ' + disk.length + ' B)')
+            : bad('skin file looks wrong: ' + diskPath);
+    }
+
+    // and back to Play
+    await page.click('#header1');
+    await new Promise((r) => setTimeout(r, 300));
+    const back = await page.evaluate(() => ({
+        playShown: !!document.querySelector('#mainbutton').offsetParent,
+        selectorShown: !!document.querySelector('#drop').offsetParent,
+        href: document.getElementById('playbutton').getAttribute('href'),
+    }));
+    back.playShown && back.selectorShown ? ok('the Play tab brings the bar straight back') :
+        bad('going back to Play lost the button/selector');
+    existsSync(join(ROOT, back.href)) ? ok('Play still points at a real build') : bad('Play points at ' + back.href);
 
     // The launcher must not reach out.
     seen.external.length === 0

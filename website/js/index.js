@@ -1,15 +1,17 @@
 /*
- * Ampler Launcher v2.0.00-offline
+ * Ampler Launcher - launcher page.
  *
- * Rewritten so the launcher has no network dependency and no dead links:
+ * Full screen, two views: Play and Skins (top left). The bottom bar holds the
+ * version selector, the Play button and the username; the username can be
+ * clicked and renamed, and the name is remembered locally.
  *
- *  - the version dropdown is generated from js/clients.js instead of thirteen
- *    hand-written <div>s, so what you see is what is actually on disk;
+ * No network dependency and no dead links:
+ *
+ *  - the version dropdown is generated from js/clients.js, so what you see is
+ *    what is actually on disk;
  *  - entries that are not bundled say so instead of navigating to a folder
  *    that does not exist;
- *  - Google Fonts is gone (see css/fonts.css);
- *  - the Discord button opens in a new tab rather than navigating the launcher
- *    away, so a dead link offline costs you nothing.
+ *  - Google Fonts is gone (see css/fonts.css).
  *
  * The bundled builds are the official Eaglercraft "offline download" single
  * files, which are built to be opened directly - so double-clicking index.html
@@ -23,10 +25,13 @@ var SVG_DOWN = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" v
 var SVG_UP = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dropdownIcon"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 15l6 -6l6 6" /></svg>';
 
 var STORE_KEY = 'ampler.offline.v2';
+var DEFAULT_USER = 'Generic User';
+var MAX_USER = 24;
 
 var state = {
-    category: 'web',
-    clientId: null
+    clientId: null,
+    view: 'play',
+    username: DEFAULT_USER
 };
 
 /* ------------------------------------------------------------------ *
@@ -37,23 +42,21 @@ function el(id) {
     return document.getElementById(id);
 }
 
-function clientsIn(category) {
-    return (window.AMPLER_CLIENTS || []).filter(function (c) {
-        return c.category === category;
-    });
+function clients() {
+    return window.AMPLER_CLIENTS || [];
 }
 
 function clientById(id) {
-    return (window.AMPLER_CLIENTS || []).filter(function (c) {
+    return clients().filter(function (c) {
         return c.id === id;
     })[0] || null;
 }
 
 // Settings persistence. On a file:// origin the browser treats the page as an
 // opaque origin and window.localStorage throws SecurityError, so this silently
-// degrades: the launcher still works, it just will not remember your last
-// selection between sessions. Game worlds are unaffected - those are handled
-// by the game build itself, not by the launcher.
+// degrades: the launcher still works, it just will not remember your name or
+// your last version between sessions. Game worlds are unaffected - those are
+// handled by the game build itself, not by the launcher.
 function loadStore() {
     try {
         var raw = window.localStorage.getItem(STORE_KEY);
@@ -105,57 +108,33 @@ function errorNA(msg) {
 }
 
 /* ------------------------------------------------------------------ *
- * Categories
+ * Views - Play / Skins
  * ------------------------------------------------------------------ */
 
-function resetSelected() {
-    ['gtabs1', 'gtabs2', 'gtabs3', 'gtabs4', 'gtabs5', 'gtabs6'].forEach(function (id) {
-        var n = el(id);
-        if (n) { n.style.fontWeight = ''; n.style.borderLeft = ''; }
-    });
-    var menu = el('dropdn');
-    if (menu) menu.style.visibility = 'hidden';
-    var arrow = el('dropdownuparrow');
-    if (arrow) arrow.innerHTML = SVG_DOWN;
-}
+function showView(name) {
+    var skins = name === 'skins';
+    state.view = skins ? 'skins' : 'play';
 
-function selectCategory(category) {
-    var meta = (window.AMPLER_CATEGORIES || {})[category];
-    if (!meta) return;
+    el('playview').hidden = skins;
+    el('skinsview').hidden = !skins;
 
-    state.category = category;
-    resetSelected();
+    // The selected tab in the header, and the bar that matches it.
+    el('header1').className = skins ? 'headerButtons' : 'headerButtonSelected';
+    el('header2').className = skins ? 'headerButtonSelected' : 'headerButtons';
+    el('mainPage').classList.toggle('skinsMode', skins);
 
-    el('game-bg').style.backgroundImage = 'url(' + meta.background + ')';
-    el('game-header').src = meta.logo;
-    el('gameedition').innerHTML = escapeHtml(meta.heading);
+    closeDropdown();
 
-    var tab = el(meta.tab);
-    if (tab) {
-        tab.style.fontWeight = '700';
-        tab.style.borderLeft = '#008542 solid 4px';
-    }
-
-    // Only the web edition has bundled content for the other top tabs to act on.
-    el('header2').style.display = category === 'modded' ? 'block' : 'none';
-    el('header5').style.display = category === 'web' ? 'block' : 'none';
-
-    buildDropdown();
-
-    var list = clientsIn(category);
-    var firstBundled = list.filter(function (c) { return c.bundled; })[0] || list[0];
-    if (firstBundled) selectClient(firstBundled.id, true);
-
-    saveStore({ category: category });
+    if (skins && typeof renderSkins === 'function') renderSkins();
 }
 
 /* ------------------------------------------------------------------ *
- * Dropdown
+ * Version dropdown
  * ------------------------------------------------------------------ */
 
 function buildDropdown() {
     var menu = el('dropdn');
-    var list = clientsIn(state.category);
+    var list = clients();
     menu.innerHTML = '';
 
     // Items are absolutely positioned and stack upward from the selector, so
@@ -168,8 +147,7 @@ function buildDropdown() {
         row.setAttribute('data-client', client.id);
         row.onclick = function () {
             selectClient(client.id);
-            el('dropdn').style.visibility = 'hidden';
-            el('dropdownuparrow').innerHTML = SVG_DOWN;
+            closeDropdown();
         };
         row.innerHTML =
             '<div class="dropdownOption">' +
@@ -215,72 +193,113 @@ function selectClient(id, silent) {
 
 function dropdowntoggle() {
     var menu = el('dropdn');
+    if (menu.style.visibility === 'hidden') openDropdown();
+    else closeDropdown();
+}
+
+function openDropdown() {
+    el('dropdn').style.visibility = 'visible';
+    el('dropdownuparrow').innerHTML = SVG_UP;
+}
+
+function closeDropdown() {
+    var menu = el('dropdn');
+    if (menu) menu.style.visibility = 'hidden';
     var arrow = el('dropdownuparrow');
-    if (menu.style.visibility === 'hidden') {
-        menu.style.visibility = 'visible';
-        arrow.innerHTML = SVG_UP;
-    } else {
-        menu.style.visibility = 'hidden';
-        arrow.innerHTML = SVG_DOWN;
-    }
+    if (arrow) arrow.innerHTML = SVG_DOWN;
 }
 
 /* ------------------------------------------------------------------ *
- * Sidebar extras
+ * Username - click it, type a name, press Enter. Saved locally.
  * ------------------------------------------------------------------ */
 
-function openDiscord() {
-    // External on purpose; opens in a tab so an unreachable network does not
-    // strand the user away from the launcher.
-    window.open('https://discord.gg/xuu8TnSY4b', '_blank', 'noopener');
+function cleanUser(name) {
+    var s = String(name == null ? '' : name).replace(/\s+/g, ' ').trim();
+    if (s.length > MAX_USER) s = s.slice(0, MAX_USER).trim();
+    return s || DEFAULT_USER;
 }
 
-function showCredits() {
-    toast('CREDITS',
-        'Ampler Launcher UI by irv77. Eaglercraft by lax1dude and contributors. ' +
-        'Offline builds mirrored from cdn.eaglercraft.ru. Local server: EaglerXServer v1.1.1.',
-        'gold');
+function setUsername(name, save) {
+    var clean = cleanUser(name);
+    state.username = clean;
+    el('username').textContent = clean;
+    el('usernameinput').value = clean;
+    if (save) saveStore({ username: clean });
+    return clean;
 }
 
-function showOfflineStatus() {
-    var bundled = clientsIn('web').filter(function (c) { return c.bundled; });
-    var onDisk = window.location.protocol === 'file:';
-    var origin = onDisk ? 'file:// (opened straight off disk)' : window.location.origin;
-    toast('OFFLINE STATUS',
-        bundled.length + ' of ' + (window.AMPLER_CLIENTS || []).length + ' clients bundled. Running from ' + origin +
-        '. No server and no internet required. Optional: ./start-offline.sh if a build misbehaves.',
-        '#7CFC98');
+function editUser() {
+    var box = el('userbox');
+    var input = el('usernameinput');
+    if (box.classList.contains('usernameEditing')) return;
+
+    box.classList.add('usernameEditing');
+    input.value = state.username;
+    input.focus();
+    input.select();
+}
+
+function commitUser() {
+    var box = el('userbox');
+    var input = el('usernameinput');
+    if (!box.classList.contains('usernameEditing')) return;
+    box.classList.remove('usernameEditing');
+    setUsername(input.value, true);
+}
+
+function cancelUser() {
+    var box = el('userbox');
+    var input = el('usernameinput');
+    if (!box.classList.contains('usernameEditing')) return;
+    box.classList.remove('usernameEditing');
+    input.value = state.username;
 }
 
 /* ------------------------------------------------------------------ *
  * Boot
  * ------------------------------------------------------------------ */
 
-function preventMotion(event) {
-    window.scrollTo(0, 0);
-    event.preventDefault();
-    event.stopPropagation();
-}
-
 function init() {
     el('dropdownuparrow').innerHTML = SVG_DOWN;
 
     var saved = loadStore();
-    if (saved.username) el('username').textContent = saved.username;
+    setUsername(saved.username || DEFAULT_USER, false);
 
-    var category = (window.AMPLER_CATEGORIES || {})[saved.category] ? saved.category : 'web';
-    selectCategory(category);
+    buildDropdown();
 
-    if (saved.clientId) {
-        var c = clientById(saved.clientId);
-        if (c && c.category === category) selectClient(saved.clientId, true);
-    }
+    var start = clientById(saved.clientId) || clients()[0];
+    if (start) selectClient(start.id, true);
+
+    // Username editing
+    var input = el('usernameinput');
+    input.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') { event.preventDefault(); commitUser(); }
+        else if (event.key === 'Escape') { event.preventDefault(); cancelUser(); }
+    });
+    input.addEventListener('blur', commitUser);
+
+    // Clicking anywhere outside the selector closes the version dropdown.
+    document.addEventListener('click', function (event) {
+        var node = event.target;
+        while (node) {
+            if (node.id === 'drop' || node.id === 'dropdn' || node.id === 'userbox') return;
+            node = node.parentNode;
+        }
+        closeDropdown();
+    });
+
+    // Nothing in the bar should be selectable, but the username field is.
+    document.querySelectorAll('.gameSelection').forEach(function (n) {
+        n.addEventListener('selectstart', function (event) {
+            if (event.target && event.target.id === 'usernameinput') return;
+            event.preventDefault();
+        });
+    });
+
+    showView('play');
 }
 
-window.addEventListener('scroll', preventMotion, false);
-window.addEventListener('touchmove', preventMotion, { passive: false });
-
-// This file is the last element in <body>, so every node init() touches has
+// This file is loaded after the markup, so every node init() touches has
 // already been parsed. Initialise immediately instead of queueing on
 // DOMContentLoaded - that keeps boot deterministic, including when the page is
 // opened straight off disk where readyState can still read "loading".
