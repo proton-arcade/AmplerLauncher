@@ -38,7 +38,7 @@ import socketserver
 import sys
 
 def _find_root():
-    # Everything but README.md and index.html sits under app/, so walk up from
+    # Everything but README.md and index.html sits under website/, so walk up from
     # this file until we reach the directory that holds the launcher page.
     d = os.path.dirname(os.path.abspath(__file__))
     while d != os.path.dirname(d):

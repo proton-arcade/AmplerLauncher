@@ -7,18 +7,18 @@ __pycache__/
 *.pyc
 
 # Local EaglerXServer runtime state - generated the first time the server runs.
-server/runtime/
-server/EaglerXServer.jar
-server/plugins.txt
-server/*.jar
-server/logs/
-server/world/
-server/world_nether/
-server/world_the_end/
-server/banned-*.json
-server/ops.json
-server/whitelist.json
-server/usercache.json
+website/server/runtime/
+website/server/EaglerXServer.jar
+website/server/plugins.txt
+website/server/*.jar
+website/server/logs/
+website/server/world/
+website/server/world_nether/
+website/server/world_the_end/
+website/server/banned-*.json
+website/server/ops.json
+website/server/whitelist.json
+website/server/usercache.json
 
 # OS noise
 .DS_Store

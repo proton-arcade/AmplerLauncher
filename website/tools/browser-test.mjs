@@ -75,7 +75,7 @@ const browser = await puppeteer.launch({
     defaultViewport: { width: 1600, height: 900 },
 });
 
-const clientsSrc = readFileSync(join(ROOT, 'app/js/clients.js'), 'utf8');
+const clientsSrc = readFileSync(join(ROOT, 'website/js/clients.js'), 'utf8');
 const ctx = {};
 new Function('window', clientsSrc)(ctx);
 const BUNDLED = ctx.AMPLER_CLIENTS.filter((c) => c.bundled);
@@ -157,7 +157,7 @@ async function driveLauncher(label, url) {
 /* ---- optional server ---- */
 let srv = null, httpBase = null;
 const port = 8123;
-srv = spawn('python3', [join(ROOT, 'app', 'tools', 'serve.py'), '--port', String(port),
+srv = spawn('python3', [join(ROOT, 'website', 'tools', 'serve.py'), '--port', String(port),
     '--host', '127.0.0.1', '--no-browser'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
 for (let i = 0; i < 60; i++) {
     try { const r = await fetch('http://127.0.0.1:' + port + '/'); if (r.status === 200) { httpBase = 'http://127.0.0.1:' + port + '/'; break; } }

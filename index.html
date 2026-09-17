@@ -9,11 +9,11 @@
 
     <!-- Everything below resolves inside this folder. No CDN, no preconnect,
          no webfont request. css/fonts.css serves Roboto from ./fonts/. -->
-    <link rel="stylesheet" href="./app/css/fonts.css">
-    <link rel="stylesheet" href="./app/css/style.css">
-    <link rel="stylesheet" media="screen and (max-width: 1100px)" href="./app/css/screensize.css">
-    <link rel="stylesheet" media="screen and (max-height: 550px)" href="./app/css/screensize.css">
-    <link rel="shortcut icon" href="./app/images/logo.png" type="image/x-icon">
+    <link rel="stylesheet" href="./website/css/fonts.css">
+    <link rel="stylesheet" href="./website/css/style.css">
+    <link rel="stylesheet" media="screen and (max-width: 1100px)" href="./website/css/screensize.css">
+    <link rel="stylesheet" media="screen and (max-height: 550px)" href="./website/css/screensize.css">
+    <link rel="shortcut icon" href="./website/images/logo.png" type="image/x-icon">
 
     <!-- Discord embed metadata. Relative-safe: og: tags are only read by chat
          scrapers over the network, never fetched by the browser. -->
@@ -38,36 +38,36 @@
 
     <div class="sidebar" id="sidebar">
         <div id="gtabs1" class="sidebarOptions" style="gap: 1vw;" onclick="openDiscord()">
-            <img src="./app/images/m-discord.png" alt="">
+            <img src="./website/images/m-discord.png" alt="">
             <div class="gTabsText"><p>Discord</p></div>
         </div>
         <div onclick="selectCategory('web')" id="gtabs2" style="font-weight: 700; border-left: #008542 solid 0.4vw;"
              class="sidebarOptions">
-            <img src="./app/images/i-web.png" alt="">
+            <img src="./website/images/i-web.png" alt="">
             <div class="gTabsText">
                 <p class="eaglercraftText"> EAGLERCRAFT : </p>
                 <p>Web Edition </p>
             </div>
         </div>
         <div onclick="selectCategory('modded')" id="gtabs3" class="sidebarOptions">
-            <img src="./app/images/i-modded.png" alt="">
+            <img src="./website/images/i-modded.png" alt="">
             <div class="gTabsText">
                 <p class="eaglercraftText"> EAGLERCRAFT : </p>
                 <p>Modded Editions </p>
             </div>
         </div>
         <div onclick="selectCategory('mobile')" id="gtabs4" class="sidebarOptions">
-            <img src="./app/images/i-controls.png" alt="">
+            <img src="./website/images/i-controls.png" alt="">
             <div class="gTabsText">
                 <p class="eaglercraftText"> EAGLERCRAFT : </p>
                 <p>Mobile/Controller </p>
             </div>
         </div>
         <div id="gtabs5" class="sidebarOptions sidebarBottom" onclick="showCredits()">
-            <img src="./app/images/m-credits.png" alt=""><div class="gTabsText"><p> Credits</p></div>
+            <img src="./website/images/m-credits.png" alt=""><div class="gTabsText"><p> Credits</p></div>
         </div>
         <div id="gtabs6" class="sidebarOptions sidebarBottom" onclick="showOfflineStatus()">
-            <img src="./app/images/m-settings.png" alt=""><div class="gTabsText"><p> Offline status</p></div>
+            <img src="./website/images/m-settings.png" alt=""><div class="gTabsText"><p> Offline status</p></div>
         </div>
         <div id="gtabs9" class="launcherVersion">
             <p>v2.0.00-offline</p>
@@ -89,9 +89,9 @@
             </div>
         </div>
 
-        <div id="game-bg" class="gameBg" style="background-image: url(./app/images/web-edition.jpg);">
+        <div id="game-bg" class="gameBg" style="background-image: url(./website/images/web-edition.jpg);">
             <div class="gameLogo">
-                <img id="game-header" src="./app/images/web-title.png" style="width: 40vw;" alt="eaglercraft">
+                <img id="game-header" src="./website/images/web-title.png" style="width: 40vw;" alt="eaglercraft">
             </div>
         </div>
 
@@ -100,7 +100,7 @@
                 <div id="drop" class="dropdownSelector" onclick="dropdowntoggle()">
                     <div style="display: flex; gap: 1vw;">
                         <div class="centeredIcon">
-                            <img id="gameicon" src="./app/images/m-logo1.png" style="width: 2.5vw;" alt="">
+                            <img id="gameicon" src="./website/images/m-logo1.png" style="width: 2.5vw;" alt="">
                         </div>
                         <div class="versionText">
                             <p id="gametitle" class="bolded">Latest release</p>
@@ -116,7 +116,7 @@
             <!-- Populated by js/index.js from js/clients.js -->
             <div id="dropdn" class="dropdownMenu" style="visibility: hidden;"></div>
 
-            <a id="playbutton" href="app/mc/1.12.2/index.html" target="_blank" rel="noopener">
+            <a id="playbutton" href="website/mc/1.12.2/index.html" target="_blank" rel="noopener">
                 <div id="mainbutton" class="playButton"></div>
             </a>
 
@@ -126,7 +126,7 @@
         </div>
     </div>
 
-    <script src="./app/js/clients.js"></script>
-    <script src="./app/js/index.js"></script>
+    <script src="./website/js/clients.js"></script>
+    <script src="./website/js/index.js"></script>
 </body>
 </html>

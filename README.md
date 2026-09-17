@@ -1,191 +1,63 @@
-# Ampler Launcher — fully offline build
+# Ampler Launcher
 
-A Minecraft-themed launcher for Eaglercraft that runs with **no internet
-connection at all**. Every byte it needs is inside this repository.
+A Minecraft-themed launcher for Eaglercraft that runs entirely offline.
 
-```
-v2.0.00-offline
-```
+It is a **website**, not an app: plain HTML/CSS/JS with no build step, no
+backend and no installer. Open it in a browser and it works — online or off.
 
----
+## Run it
 
-## Quick start
+Open `index.html` in any browser. Pick a version, press Play.
 
-**Just open `index.html`.** Double-click it, or drag it into a browser.
+That is all. Nothing is downloaded and nothing phones home.
 
-Pick a version, press Play. That is the whole thing — no server, no install,
-no internet connection, no build step.
-
-The five bundled builds are the official Eaglercraft *offline download* single
-files. Each is one self-contained HTML document with its assets inlined, and
-they are built to be opened directly off disk — which is what makes them the
-right thing to ship for this.
-
-### Optional: the local server
-
-`app/tools/serve.py` is still here, but it is **not required to play**. Run it only
-if you want one of two things:
-
-```bash
-./app/start-offline.sh       # or start-offline.bat / start-offline.command
-```
-
-- **`SharedArrayBuffer` for the WASM builds.** It sends the
-  `Cross-Origin-Opener-Policy` / `Cross-Origin-Embedder-Policy` headers, which
-  are the only way a page gets `SharedArrayBuffer`. Those two builds run
-  without it; with it they can take a faster path.
-- **Playing from another device on your LAN.**
-
-One real difference when running off disk: browsers treat a `file://` page as
-an *opaque origin* and refuse `localStorage`, so the launcher will not remember
-your last-selected version between sessions. Everything else works, and game
-worlds are saved by the game build itself, not by the launcher.
-
----
-
-## What is bundled
-
-Five self-contained Eaglercraft builds, each a single HTML file with its
-assets inlined:
-
-| Version | Path | Source archive |
-|---|---|---|
-| 1.12.2-u3 | `app/mc/1.12.2/index.html` | `Eaglercraft_1.12.2_u3_Offline.zip` |
-| 1.12.2-u3 WASM | `app/mc/1.12.2-wasm/index.html` | `Eaglercraft_1.12.2_u3_WASM_Offline.zip` |
-| 1.8.8-u53 | `app/mc/1.8.8/index.html` | `EaglercraftX_1.8_u53_Offline_Signed.zip` |
-| 1.8.8-u53 WASM-GC | `app/mc/1.8.8-wasm/index.html` | `EaglercraftX_1.8_u53_WASM-GC_Offline.zip` |
-| 1.5.2-sp2.01 | `app/mc/1.5.2/index.html` | `Eaglercraft_1.5.2-sp2.01_Offline.zip` |
-
-Each build was checked to contain **zero** remote `<script>`, `<link>`, `<img>`
-or `url()` references.
-
-### Singleplayer vs multiplayer
-
-**Singleplayer works completely offline** with nothing else installed.
-
-**Multiplayer** normally goes through public websocket relays on the internet.
-Offline, you host your own instead — see [`server/README.md`](server/README.md).
-
----
-
-## What was replaced, and with what
-
-The point of this rebuild is that nothing outside the six source archives is
-fetched at runtime. Here is every dependency that was not one of those
-archives, and where it went.
-
-| Before | Problem offline | Now |
-|---|---|---|
-| `fonts.googleapis.com` + `fonts.gstatic.com` (3 tags in `index.html`) | Only outbound fetch in the launcher; text falls back to a system font | Roboto latin woff2 vendored into `app/fonts/` from the OFL-licensed `@fontsource/roboto` package, served by `app/css/fonts.css` |
-| 13 hand-written dropdown `<div>`s in `index.html` | 8 of them pointed at `mc/` folders that do not exist → dead links | Dropdown generated from `app/js/clients.js`; every row either launches a real file or says it is not bundled |
-| `app/mc/1.8.8/?userscript=…` for the mobile/controller entries | The offline builds do not implement userscript loading — the string `userscript` appears **0 times** in all five | Those entries are marked not bundled instead of silently doing nothing |
-| `mc/{astraclient,starlikeclient,eaglerforge,resentclient,shadowclient}/` | Folders absent from the repo; 30–300 MB each upstream | Listed, marked not bundled, with the exact path to drop a build into |
-| `irv77.github.io` `og:` tags | Pointed at a repository now removed under DMCA | Removed |
-| Discord sidebar button navigated the launcher away | A dead link offline stranded you | Opens in a new tab via `window.open` |
-| No way to play multiplayer offline | Relays are public internet hosts | `server/` — EaglerXServer v1.1.1 source plus start scripts |
-
----
-
-## Adding a client that is not bundled
-
-The Modded and Mobile/Controller tabs list clients that are not included. To
-add one:
-
-1. Put a self-contained HTML build at the path shown, e.g. `app/mc/resentclient/index.html`.
-2. In `app/js/clients.js`, flip that entry's `bundled` to `true`.
-3. Run `node app/tools/verify-offline.mjs` to confirm it is still self-contained.
-
----
-
-## Verifying the offline claim
-
-```bash
-node app/tools/verify-offline.mjs        # optional: npm i jsdom  (enables the DOM test)
-```
-
-Four groups of checks:
-
-1. **No network access** — every HTML/CSS/JS file in the repo, including the
-   five 15–31 MB game builds, is scanned for anything that opens a connection.
-   A canary confirms the scanner would still catch the old Google Fonts tag, so
-   the check cannot pass vacuously.
-2. **No dangling references** — every local `href` / `src` / `url()` resolves to
-   a file on disk.
-3. **The launcher works** — `index.html` is loaded in jsdom with
-   `js/clients.js` and `app/js/index.js` executed against it. Every sidebar tab is
-   selected, all 13 dropdown rows are clicked, and each resulting Play button
-   href must resolve to a real file. The same page is then booted a second time
-   from a `file:///.../index.html` URL to prove the no-server path: it must boot
-   without throwing and still build the dropdown. A regression check also
-   asserts none of the five builds carry the `startsWith("file:")` launch gate
-   the old folder-based `mc/1.5.2` had, with a canary proving the detector would
-   catch it.
-4. **It serves** — `app/tools/serve.py` is booted and every page is requested over
-   HTTP, asserting `200` plus the `Cross-Origin-Opener-Policy` /
-   `Cross-Origin-Embedder-Policy` headers the WASM builds need for
-   `SharedArrayBuffer`.
-
-Last run: **32 passed, 0 failed**.
-
-### Real-browser test (stronger, optional)
-
-```bash
-npm i puppeteer-core @sparticuz/chromium    # or point $BROWSER_PATH at a Chrome
-node app/tools/browser-test.mjs
-```
-
-`app/tools/browser-test.mjs` drives an actual Chromium with a request watcher and
-proves the two things a static scan cannot:
-
-- the launcher, opened straight off disk with **no server running**, renders,
-  answers every tab/row click, and issues **zero** requests that leave the
-  machine;
-- each of the five bundled games loads from `file://` with **no server**, makes
-  **zero** network requests, and reaches its rendered boot screen.
-
-Last run: **23 passed, 0 failed**, and every build produced a screenshot of its
-actual rendered output.
-
----
-
-## Repository layout
-
-Everything except `README.md` and `index.html` lives under a single `app/`
-folder, so the top level stays readable.
+Optionally, run the small local server if you want `SharedArrayBuffer` for the
+WASM builds or to play from another device on your LAN:
 
 ```
-README.md             docs (top level)
-index.html            launcher UI (top level)
-app/css/              styles + self-hosted font faces
-app/fonts/            Roboto woff2 (latin, 400 + 700)
-app/js/clients.js     client manifest — the single source of truth
-app/js/index.js       launcher behaviour
-app/images/           launcher artwork
-app/mc/<version>/     the five offline game builds
-app/server/           EaglerXServer for local multiplayer
-app/tools/serve.py    OPTIONAL local server (SharedArrayBuffer / LAN)
-app/tools/verify-offline.mjs   the offline guarantee test
-app/tools/browser-test.mjs     real-Chromium no-server test
-app/start-offline.*   optional one-click launchers for the above
-.gitattributes        marks app/mc/** binary (CRLF would corrupt the builds)
+./website/start-offline.sh      # or start-offline.bat / .command
 ```
 
-The test scripts and `serve.py` locate the repo root by walking up until they
-find the directory containing `index.html` + `README.md`, so they keep working
-no matter how deep they sit.
+then use `http://localhost:8080/`.
 
----
+## What is included
 
-## Notes
+Five self-contained Eaglercraft builds (one HTML file each) under
+`website/mc/`:
 
-- `.gitattributes` marks `mc/**` as binary. Those files carry base64 payloads;
-  a single CRLF normalisation would corrupt them silently.
-- The bundled builds are large (≈103 MB total). Clone with
-  `git clone --depth 1` if you only need the current version.
+| Version | Folder |
+|---|---|
+| 1.12.2-u3 | `website/mc/1.12.2/` |
+| 1.12.2-u3 WASM | `website/mc/1.12.2-wasm/` |
+| 1.8.8-u53 | `website/mc/1.8.8/` |
+| 1.8.8-u53 WASM-GC | `website/mc/1.8.8-wasm/` |
+| 1.5.2-sp2.01 | `website/mc/1.5.2/` |
+
+Singleplayer works with no server. For offline multiplayer, `website/server/`
+holds EaglerXServer v1.1.1 (see `website/server/README.md`).
+
+## Layout
+
+```
+index.html              launcher page
+README.md               this file
+website/                everything else
+  css/ fonts/ images/   launcher assets (font is self-hosted)
+  js/                   launcher code + client list
+  mc/                   the five game builds
+  server/               optional local multiplayer server
+  tools/                serve.py + the offline checks
+  start-offline.*       optional one-click launchers
+```
+
+## Verify
+
+```
+node website/tools/verify-offline.mjs     # static offline checks
+node website/tools/browser-test.mjs       # real-browser, no-server check
+```
 
 ## Credits
 
-- **Eaglercraft** — lax1dude and contributors
-- **EaglerXServer** — lax1dude, v1.1.1
-- **Launcher UI** — irv77
-- **Roboto** — Christian Robertson, SIL Open Font License
+Eaglercraft and EaglerXServer by lax1dude and contributors. Launcher UI by
+irv77. Roboto (SIL OFL) via @fontsource.

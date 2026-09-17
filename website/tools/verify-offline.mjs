@@ -32,7 +32,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 
 // The repo root is the directory that holds index.html + README.md (everything
-// else lives under app/, so this file may be nested).
+// else lives under website/, so this file may be nested).
 function findRoot() {
     let d = dirname(fileURLToPath(import.meta.url));
     while (d !== dirname(d)) {
@@ -146,7 +146,7 @@ if (remoteHits.length === 0) {
 // browser test's request watcher confirms 0 of them fire at boot.)
 {
     const launcherFiles = ALL.filter((f) =>
-        rel(f) === 'index.html' || rel(f).startsWith('app/js/') || rel(f).startsWith('app/css/'));
+        rel(f) === 'index.html' || rel(f).startsWith('website/js/') || rel(f).startsWith('website/css/'));
     const REQUIRED = ['XMLHttpRequest', 'navigator.serviceWorker', 'importScripts', 'type="module"'];
     let hits = 0;
     for (const f of launcherFiles) {
@@ -188,7 +188,7 @@ const LOCAL_REFS = [
 
 let checkedRefs = 0, brokenRefs = 0;
 for (const file of SCANNABLE) {
-    if (rel(file).startsWith('mc/') || rel(file).startsWith('app/mc/')) continue; // game blobs are self-contained
+    if (rel(file).startsWith('mc/') || rel(file).startsWith('website/mc/')) continue; // game blobs are self-contained
     const text = readFileSync(file, 'utf8');
     for (const rx of LOCAL_REFS) {
         rx.lastIndex = 0;
@@ -215,7 +215,7 @@ if (brokenRefs === 0) ok(checkedRefs + ' local references all resolve on disk');
 
 head('3. Launcher renders and every Play button goes somewhere real');
 
-const clientsSrc = readFileSync(join(ROOT, 'app/js/clients.js'), 'utf8');
+const clientsSrc = readFileSync(join(ROOT, 'website/js/clients.js'), 'utf8');
 const ctx = { window: {} };
 new Function('window', clientsSrc)(ctx.window);
 const CLIENTS = ctx.window.AMPLER_CLIENTS;
@@ -290,8 +290,8 @@ if (!Array.isArray(CLIENTS) || CLIENTS.length === 0) {
         const win = dom.window;
         win.open = () => null;                       // no popups in test
         win.console.clear = () => {};
-        win.eval(readFileSync(join(ROOT, 'app/js/clients.js'), 'utf8'));
-        win.eval(readFileSync(join(ROOT, 'app/js/index.js'), 'utf8'));
+        win.eval(readFileSync(join(ROOT, 'website/js/clients.js'), 'utf8'));
+        win.eval(readFileSync(join(ROOT, 'website/js/index.js'), 'utf8'));
 
         const d = win.document;
         const assert = (cond, msg) => (cond ? ok(msg) : bad(msg));
@@ -354,8 +354,8 @@ if (!Array.isArray(CLIENTS) || CLIENTS.length === 0) {
         fwin.console.clear = () => {};
         let bootError = null;
         try {
-            fwin.eval(readFileSync(join(ROOT, 'app/js/clients.js'), 'utf8'));
-            fwin.eval(readFileSync(join(ROOT, 'app/js/index.js'), 'utf8'));
+            fwin.eval(readFileSync(join(ROOT, 'website/js/clients.js'), 'utf8'));
+            fwin.eval(readFileSync(join(ROOT, 'website/js/index.js'), 'utf8'));
         } catch (e) { bootError = e; }
         const fd = fwin.document;
 
@@ -368,7 +368,7 @@ if (!Array.isArray(CLIENTS) || CLIENTS.length === 0) {
             'file:// boot Play button resolves on disk');
         assert(!fd.getElementById('filewarning'),
             'no stale file:// warning element left in the markup');
-        assert(!readFileSync(join(ROOT, 'app/js/index.js'), 'utf8').includes('filewarning'),
+        assert(!readFileSync(join(ROOT, 'website/js/index.js'), 'utf8').includes('filewarning'),
             'js/index.js no longer references a file:// warning gate');
     }
 }
@@ -387,7 +387,7 @@ if (!pythonAvailable()) {
     skipped('python3 not found - skipping HTTP test');
 } else {
     const port = 8000 + Math.floor(Math.random() * 1000);
-    const srv = spawn('python3', [join(ROOT, 'app', 'tools', 'serve.py'),
+    const srv = spawn('python3', [join(ROOT, 'website', 'tools', 'serve.py'),
         '--port', String(port), '--host', '127.0.0.1', '--no-browser'],
         { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
 
@@ -402,8 +402,8 @@ if (!pythonAvailable()) {
         bad('server did not announce itself within 5s');
     } else {
         const base = 'http://127.0.0.1:' + port + '/';
-        const targets = ['index.html', 'app/css/style.css', 'app/css/fonts.css', 'app/js/index.js',
-            'app/js/clients.js', 'app/fonts/roboto-latin-400-normal.woff2',
+        const targets = ['index.html', 'website/css/style.css', 'website/css/fonts.css', 'website/js/index.js',
+            'website/js/clients.js', 'website/fonts/roboto-latin-400-normal.woff2',
             ...CLIENTS.filter((c) => c.bundled).map((c) => c.path)];
 
         for (const t of targets) {

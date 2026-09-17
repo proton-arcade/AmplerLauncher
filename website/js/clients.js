@@ -18,8 +18,8 @@ window.AMPLER_CLIENTS = [
         category: 'web',
         title: 'Latest release',
         version: '1.12.2-u3',
-        icon: './app/images/m-logo1.png',
-        path: 'app/mc/1.12.2/index.html',
+        icon: './website/images/m-logo1.png',
+        path: 'website/mc/1.12.2/index.html',
         bundled: true,
         source: 'Eaglercraft_1.12.2_u3_Offline.zip'
     },
@@ -28,8 +28,8 @@ window.AMPLER_CLIENTS = [
         category: 'web',
         title: 'Latest release WASM',
         version: '1.12.2-u3-wasm',
-        icon: './app/images/m-logo1.png',
-        path: 'app/mc/1.12.2-wasm/index.html',
+        icon: './website/images/m-logo1.png',
+        path: 'website/mc/1.12.2-wasm/index.html',
         bundled: true,
         wasm: true,
         source: 'Eaglercraft_1.12.2_u3_WASM_Offline.zip'
@@ -39,8 +39,8 @@ window.AMPLER_CLIENTS = [
         category: 'web',
         title: 'Previous release',
         version: '1.8.8-u53',
-        icon: './app/images/m-logo2.png',
-        path: 'app/mc/1.8.8/index.html',
+        icon: './website/images/m-logo2.png',
+        path: 'website/mc/1.8.8/index.html',
         bundled: true,
         source: 'EaglercraftX_1.8_u53_Offline_Signed.zip'
     },
@@ -49,8 +49,8 @@ window.AMPLER_CLIENTS = [
         category: 'web',
         title: 'Previous release WASM',
         version: '1.8.8-u53-wasm',
-        icon: './app/images/m-logo2.png',
-        path: 'app/mc/1.8.8-wasm/index.html',
+        icon: './website/images/m-logo2.png',
+        path: 'website/mc/1.8.8-wasm/index.html',
         bundled: true,
         wasm: true,
         source: 'EaglercraftX_1.8_u53_WASM-GC_Offline.zip'
@@ -60,8 +60,8 @@ window.AMPLER_CLIENTS = [
         category: 'web',
         title: 'Older release',
         version: '1.5.2-sp2.01',
-        icon: './app/images/m-logo11.png',
-        path: 'app/mc/1.5.2/index.html',
+        icon: './website/images/m-logo11.png',
+        path: 'website/mc/1.5.2/index.html',
         bundled: true,
         source: 'Eaglercraft_1.5.2-sp2.01_Offline.zip'
     },
@@ -80,8 +80,8 @@ window.AMPLER_CLIENTS = [
         category: 'modded',
         title: 'Eaglerforge',
         version: '1.8.8 - not bundled',
-        icon: './app/images/m-logo5.png',
-        path: 'app/mc/eaglerforge/index.html',
+        icon: './website/images/m-logo5.png',
+        path: 'website/mc/eaglerforge/index.html',
         bundled: false
     },
     {
@@ -89,8 +89,8 @@ window.AMPLER_CLIENTS = [
         category: 'modded',
         title: 'Resent Client',
         version: '1.8.8 - not bundled',
-        icon: './app/images/m-logo4.png',
-        path: 'app/mc/resentclient/index.html',
+        icon: './website/images/m-logo4.png',
+        path: 'website/mc/resentclient/index.html',
         bundled: false
     },
     {
@@ -98,8 +98,8 @@ window.AMPLER_CLIENTS = [
         category: 'modded',
         title: 'Shadow Client',
         version: '1.8.8 - not bundled',
-        icon: './app/images/m-logo3.png',
-        path: 'app/mc/shadowclient/index.html',
+        icon: './website/images/m-logo3.png',
+        path: 'website/mc/shadowclient/index.html',
         bundled: false
     },
     {
@@ -107,8 +107,8 @@ window.AMPLER_CLIENTS = [
         category: 'modded',
         title: 'Starlike',
         version: '1.8.8 - not bundled',
-        icon: './app/images/m-logo6.png',
-        path: 'app/mc/starlikeclient/index.html',
+        icon: './website/images/m-logo6.png',
+        path: 'website/mc/starlikeclient/index.html',
         bundled: false
     },
     {
@@ -116,8 +116,8 @@ window.AMPLER_CLIENTS = [
         category: 'modded',
         title: 'Astra Client',
         version: '1.8.8 - not bundled',
-        icon: './app/images/m-logo7.png',
-        path: 'app/mc/astraclient/index.html',
+        icon: './website/images/m-logo7.png',
+        path: 'website/mc/astraclient/index.html',
         bundled: false
     },
 
@@ -134,8 +134,8 @@ window.AMPLER_CLIENTS = [
         category: 'mobile',
         title: "FlamedDogo's Mobile UI",
         version: '1.8.8 - not bundled',
-        icon: './app/images/m-logo10.png',
-        path: 'app/mc/flameddogo-mobile/index.html',
+        icon: './website/images/m-logo10.png',
+        path: 'website/mc/flameddogo-mobile/index.html',
         bundled: false
     },
     {
@@ -143,8 +143,8 @@ window.AMPLER_CLIENTS = [
         category: 'mobile',
         title: "Red's Mobile UI",
         version: '1.8.8 - not bundled',
-        icon: './app/images/m-logo9.png',
-        path: 'app/mc/red-mobile/index.html',
+        icon: './website/images/m-logo9.png',
+        path: 'website/mc/red-mobile/index.html',
         bundled: false
     },
     {
@@ -152,8 +152,8 @@ window.AMPLER_CLIENTS = [
         category: 'mobile',
         title: "Red's Controller Support",
         version: '1.8.8 - not bundled',
-        icon: './app/images/m-logo8.png',
-        path: 'app/mc/red-controller/index.html',
+        icon: './website/images/m-logo8.png',
+        path: 'website/mc/red-controller/index.html',
         bundled: false
     }
 ];
@@ -161,20 +161,20 @@ window.AMPLER_CLIENTS = [
 window.AMPLER_CATEGORIES = {
     web: {
         heading: 'EAGLERCRAFT WEB EDITION',
-        background: './app/images/web-edition.jpg',
-        logo: './app/images/web-title.png',
+        background: './website/images/web-edition.jpg',
+        logo: './website/images/web-title.png',
         tab: 'gtabs2'
     },
     modded: {
         heading: 'EAGLERCRAFT MODDED',
-        background: './app/images/modded-edition.jpg',
-        logo: './app/images/modded-title.png',
+        background: './website/images/modded-edition.jpg',
+        logo: './website/images/modded-title.png',
         tab: 'gtabs3'
     },
     mobile: {
         heading: 'EAGLERCRAFT MOBILE/CONTROLLER',
-        background: './app/images/controls-edition.jpg',
-        logo: './app/images/controls-title.png',
+        background: './website/images/controls-edition.jpg',
+        logo: './website/images/controls-title.png',
         tab: 'gtabs4'
     }
 };
