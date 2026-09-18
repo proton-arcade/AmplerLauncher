@@ -1,20 +1,14 @@
-/*
- * Ampler Launcher - your username, as a file.
- *
- * When you type a name in the launcher (bottom right of the bar), it is kept
- * in the browser's local storage and in a year-long cookie, wherever the
- * browser allows. Some browsers refuse both to a page opened straight off
- * disk, or clear them when they close - with those, the name would snap back
- * to "Generic User" on every start.
- *
- * So set it here instead: whatever this line says is the name the launcher
- * boots with. A name remembered by the browser (when the browser allows it)
- * still wins, so this only shows if nothing better is known. Deleting this
- * file is fine too: the launcher then falls back to "Generic User".
- *
- * Change the name between the quotes and reload:
- *
- *     window.AMPLER_USER = 'Steve';
- */
+// =========================================================================
+//  YOUR USERNAME - change the name between the quotes, keep the quotes,
+//  save this file, reload the launcher. That is the whole setup.
+//
+//      window.AMPLER_USER = 'Steve';
+//
+//  The launcher keeps a typed name in this browser's storage and in a
+//  year-long cookie wherever it may; browsers that refuse both (or wipe
+//  them when they close) boot with the name in this file instead, so the
+//  name here is the one that ALWAYS comes back. Deleting this file is
+//  fine too: the launcher then falls back to "Generic User".
+// =========================================================================
 
 window.AMPLER_USER = 'Generic User';

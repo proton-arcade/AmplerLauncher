@@ -300,6 +300,19 @@ const ctx = { window: {} };
 new Function('window', clientsSrc)(ctx.window);
 const CLIENTS = ctx.window.AMPLER_CLIENTS;
 
+// js/user.js is a hand-edited file: it must stay valid JavaScript and keep
+// defining AMPLER_USER, or a bad rename silently reverts to the default.
+{
+    const userSrc = readFileSync(join(ROOT, 'website/js/user.js'), 'utf8');
+    const uctx = { window: {} };
+    let userError = null;
+    try { new Function('window', userSrc)(uctx.window); } catch (e) { userError = e; }
+    if (userError) bad('website/js/user.js does not parse (is the name still inside its quotes?): ' + userError.message);
+    else if (typeof uctx.window.AMPLER_USER !== 'string' || !uctx.window.AMPLER_USER.trim())
+        bad('website/js/user.js must define window.AMPLER_USER as a non-empty quoted name');
+    else ok('website/js/user.js parses and boots with the name "' + uctx.window.AMPLER_USER + '"');
+}
+
 const skinsSrc = readFileSync(join(ROOT, 'website/js/skins.js'), 'utf8');
 const sctx = { window: {} };
 new Function('window', skinsSrc)(sctx.window);
