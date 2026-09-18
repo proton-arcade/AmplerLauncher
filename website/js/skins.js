@@ -2,8 +2,7 @@
  * Ampler Launcher - skin manifest.
  *
  * THE SKINS PAGE IS JUST A FOLDER. To add or remove a skin, add or remove a
- * folder in website/skins/ - there is no setup, no build step and no code to
- * write:
+ * folder in website/skins/ - there is no build step and no code to write:
  *
  *     website/skins/
  *       skin template/
@@ -16,25 +15,31 @@
  * The folder name is the skin name. The two files inside follow the pattern
  *
  *     <name>.png            (the skin)
- *     preview.<name>.png    (the preview image)
+ *     preview.<name>.png    (the preview image - optional, see below)
  *
- * then the folder gets one line in the list below. Delete the folder and the
- * line to remove the skin again.
+ * A browser opened straight off disk cannot list a folder, so the page goes
+ * by the two lists below. After adding or removing a folder, run
+ *
+ *     python3 website/tools/bake-skins.py
+ *
+ * once: it writes the folder listing into website/skins/list.js, which this
+ * page loads on every boot, and the reload is all it takes. (The same tool
+ * keeps that file in step with the folder, so editing it never needed.)
+ *
+ * Editing the list in here by hand works too - one line per folder:
+ *
+ * window.AMPLER_SKINS = [
+ *     { name: 'skin template' },
+ *     { name: 'creeper' },
+ *     { name: 'my skin' }        // <- a folder added by hand
+ * ];
+ *
+ * This list decides the order; anything baked into skins/list.js is appended
+ * after it. A folder that has been deleted is simply skipped instead of
+ * leaving a dead box.
  *
  * Missing preview? Not a problem: the download card draws the front of the
  * character from the skin file itself, so a bare <name>.png still shows up.
- *
- * Two other ways in, both for the case where index.html is opened by
- * double-clicking and no server is running:
- *
- *   - "Add skin folder" on the Skins page puts a folder on the page for that
- *     session, without writing anything;
- *   - `python3 website/tools/bake-skins.py` writes the folder listing into
- *     website/skins/list.js once, so dropped folders show up off disk too.
- *
- * When the launcher IS served (start-offline.*), none of that is needed: the
- * server hands the page the live folder listing and this file only decides the
- * order.
  */
 
 window.AMPLER_SKINS = [
@@ -46,6 +51,3 @@ window.AMPLER_SKINS = [
    used to build the paths on the cards - they match the layout above. */
 window.AMPLER_SKIN_DIR = './website/skins/';
 window.AMPLER_SKIN_PREVIEW_PREFIX = 'preview.';
-
-/* Accepted image types for a skin / preview file. */
-window.AMPLER_SKIN_TYPES = ['png', 'jpg', 'jpeg', 'webp', 'gif'];

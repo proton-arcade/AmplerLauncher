@@ -21,7 +21,6 @@
 
 # Binary assets.
 website/fonts/*.woff2 binary
-website/server/*.zip binary
 website/images/*.png binary
 website/images/*.jpg binary
 website/skins/**/*.png binary

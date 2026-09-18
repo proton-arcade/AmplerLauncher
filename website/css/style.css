@@ -64,33 +64,6 @@ pre {
 }
 
 /* ------------------------------------------------------------------ *
- * Toast (still used for the "not bundled" notice)
- * ------------------------------------------------------------------ */
-
-.error {
-    display: none;
-    position: absolute;
-    right: 0;
-    top: 0;
-    z-index: 40;
-    padding: 0.5vw 1vw;
-    margin: 1vw 0.5vw;
-    background: rgba(0, 0, 0, 0.65);
-    border-radius: 2.5vw;
-    font-style: italic;
-    transition: 0.3s;
-    animation: drop .5s linear forwards;
-    font-size: 1.5vw;
-    max-width: 45vw;
-}
-
-#naerror {
-    display: none;
-    color: gold;
-    border: gold solid 0.2vw;
-}
-
-/* ------------------------------------------------------------------ *
  * Shell
  * ------------------------------------------------------------------ */
 
@@ -251,14 +224,17 @@ pre {
     color: #b9b9b9;
 }
 
-.skinsTools {
-    display: flex;
-    align-items: center;
-    gap: 0.6vw;
+/* No "Add skin folder" button any more: the search box is the whole
+   right side of the head row, sized to the space it left behind. */
+.skinSearch {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-left: 2vw;
 }
 
 .skinSearch input {
-    width: 16vw;
+    display: block;
+    width: 100%;
     padding: 0.45vw 0.9vw;
     font-family: inherit;
     font-size: 0.9vw;
@@ -276,31 +252,6 @@ pre {
 
 .skinSearch input::placeholder {
     color: #8a8a8a;
-}
-
-.skinTool {
-    display: flex;
-    align-items: center;
-    gap: 0.5vw;
-    padding: 0.4vw 0.9vw;
-    font-size: 0.9vw;
-    color: #e6e6e6;
-    background-color: rgba(19, 19, 19, 0.85);
-    border: #353535 solid 1px;
-    border-radius: 0.3vw;
-    transition: 0.2s;
-}
-
-.skinTool svg {
-    width: 1.15vw;
-    height: 1.15vw;
-}
-
-.skinTool:hover {
-    cursor: pointer;
-    color: white;
-    background-color: #008542;
-    border-color: #008542;
 }
 
 .skinsGrid {
@@ -517,8 +468,7 @@ pre {
     justify-content: center;
 }
 
-/* The version icons (bar and list) are sized here rather than inline, so the
-   phone rules in screensize.css can enlarge them without !important. */
+/* The version icons (bar and list) are sized here rather than inline. */
 #gameicon,
 .dropdownOption img {
     width: 2.5vw;
@@ -646,8 +596,7 @@ pre {
 
 .usernameInput:focus-visible,
 .skinSearch input:focus-visible,
-.skinDownload:focus-visible,
-.skinTool:focus-visible {
+.skinDownload:focus-visible {
     outline: #008542 solid 0.16vw;
     outline-offset: 0.1vw;
 }
@@ -701,12 +650,5 @@ pre {
     100% {
         transform: translateY(0) scaleY(1);
         opacity: 1;
-    }
-}
-
-@keyframes zoomed {
-    100% {
-        transform: translateY(10px) scale(0);
-        display: none;
     }
 }

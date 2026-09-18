@@ -3,22 +3,15 @@
 A Minecraft-themed launcher for Eaglercraft that runs entirely offline.
 
 It is a **website**, not an app: plain HTML/CSS/JS with no build step, no
-backend and no installer. Open it in a browser and it works — online or off.
+backend, no installer and no server. It lives in a folder — open
+`index.html` in a browser and it works. Nothing is downloaded, nothing
+phones home, and nothing here ever asks you to start a server.
 
 ## Run it
 
 Open `index.html` in any browser. Pick a version, press Play.
 
-That is all. Nothing is downloaded and nothing phones home.
-
-Optionally, run the small local server if you want `SharedArrayBuffer` for the
-WASM builds or to play from another device on your LAN:
-
-```
-./website/start-offline.sh      # or start-offline.bat / .command
-```
-
-then use `http://localhost:8080/`.
+That is all.
 
 ## The launcher
 
@@ -35,17 +28,21 @@ it. The bottom bar holds three things:
 
 **Skins page** — the same background with a box per skin on top of it: the
 preview picture on top, the name in the bottom left corner and the download
-button in the bottom right. The download button hands you the skin `.png`
-exactly as it sits on disk.
+button in the bottom right. The search box in the head row filters the grid
+as you type.
 
 Switching between Play and Skins is free and instant — the top left tabs. On
 the Skins page the bar keeps the username and drops the Play button and the
 version selector.
 
+There are no popups anywhere in the launcher: no toasts, no notices, no
+countdown screens of its own. The only thing that ever opens on top of the
+page is a new tab you asked for.
+
 ## Skins
 
-**A skin is a folder.** Drop it in, reload, it is on the Skins page. Delete the
-folder and it is gone. Nothing to configure, nothing to build:
+**A skin is a folder.** One folder per skin inside `website/skins/`, named
+after the skin:
 
 ```
 website/skins/
@@ -64,38 +61,56 @@ The folder name is the skin name. The two files inside follow the pattern
 preview.<name>.png    the preview picture
 ```
 
-That is the whole setup **when the launcher is served by `tools/serve.py`**,
-which is what `start-offline.*` runs: the server answers
-`website/skins/list.js` straight from the directory listing, so the page always
-shows exactly the folders that are on disk.
+A browser cannot list a folder by itself, so the page goes by two lists, in
+this order:
 
-Opening `index.html` by double-clicking cannot read a directory listing — no
-browser may, that is not a launcher limitation — so off disk you have three
-ways to get a new skin onto the page, none of them more than one step:
+1. `website/js/skins.js` — the hand-kept manifest. It decides the order, and
+   it is also the way to add a skin with no tools at all:
 
-1. **`Add skin folder`** on the Skins page. Pick the folder; it is on the page
-   for that session, nothing written, nothing to undo.
-2. **`python3 website/tools/bake-skins.py`** — writes the folder list into
-   `website/skins/list.js` once, so the folder shows up on every load from then
-   on. Run it again after adding or removing a folder.
-3. **One line** in `website/js/skins.js`, which is also the file that decides
-   the order off disk:
+   ```js
+   window.AMPLER_SKINS = [
+       { name: 'skin template' },
+       { name: 'creeper' },
+       { name: 'my skin' }     // <- one line per folder
+   ];
+   ```
 
-```js
-window.AMPLER_SKINS = [
-    { name: 'skin template' },
-    { name: 'creeper' },
-    { name: 'my skin' }        // <- the folder to show when opened off disk
-];
-```
+2. `website/skins/list.js` — written by the bake tool so you never have to
+   edit anything after dropping a folder in:
 
-When served, that list only decides the **order** — a folder missing from it
-still shows up (at the end). Either way, a folder that has been deleted is
-simply skipped instead of leaving a dead box.
+   ```
+   python3 website/tools/bake-skins.py
+   ```
+
+   Run it once after adding or removing a folder in `website/skins/`, reload
+   `index.html`, done. It only needs Python 3 — no connection, no server.
+   Deleting `website/skins/list.js` is always safe; the page falls back to
+   `js/skins.js`.
+
+Either way, a folder that has been deleted is simply skipped instead of
+leaving a dead box.
 
 - **No preview file?** Not a problem — the card draws the front of the
-  character from the skin file itself (classic 64×64 and HD skins both work),
-  so a bare `<name>.png` still shows up.
+  character from the skin file itself (classic 64×64, 64×32 and HD skins all
+  work), so a bare `<name>.png` still shows up.
+
+## The download button
+
+Clicking it hands the skin `.png` to the browser exactly as it sits in the
+folder — nothing is re-encoded.
+
+How far that click goes depends on where the page lives, because a browser
+only lets a page download a file it is allowed to read:
+
+- **Over any http(s) origin** (the folder hosted anywhere static — GitHub
+  Pages, a LAN, any plain static host) the file is read with `fetch()` and
+  handed back as a blob with the download attribute set. That is a real
+  download: the file lands straight in the browser's Downloads.
+- **Straight off disk** (`file://`) a page is an opaque origin: every read of
+  another file is refused and the download attribute is ignored — clicking a
+  bare link would swap the page itself for the raw PNG. The launcher never
+  lets that happen: the skin opens in a **new tab** (the browser's own image
+  viewer, which has a save button) and the launcher stays where it was.
 
 ## What is included
 
@@ -110,8 +125,10 @@ Five self-contained Eaglercraft builds (one HTML file each) under
 | 1.8.8-u53 WASM-GC | `website/mc/1.8.8-wasm/` |
 | 1.5.2-sp2.01 | `website/mc/1.5.2/` |
 
-Singleplayer works with no server. For offline multiplayer, `website/server/`
-holds EaglerXServer v1.1.1 (see `website/server/README.md`).
+Singleplayer works with no server — the builds are the official Eaglercraft
+"offline download" single files, built to be opened directly, which is why
+double-clicking `index.html` is the normal way to run this launcher. The
+launcher itself is singleplayer-only; it ships nothing that needs hosting.
 
 ## Layout
 
@@ -122,27 +139,29 @@ website/                everything else
   css/ fonts/ images/   launcher assets (font is self-hosted)
   js/                   launcher code + the client and skin lists
   mc/                   the five game builds
-  skins/                one folder per skin (see above)
-  server/               optional local multiplayer server
-  tools/                serve.py, bake-skins.py + the offline checks
-  start-offline.*       optional one-click launchers
+  skins/                one folder per skin (see above) + list.js
+  tools/                bake-skins.py + the offline checks
 ```
 
 ## Verify
 
 ```
 node website/tools/verify-offline.mjs     # static offline checks (no browser needed)
-node website/tools/browser-test.mjs       # real-browser, no-server check
+node website/tools/browser-test.mjs       # real-browser, off-disk check
 ```
 
 `verify-offline.mjs` proves that nothing reaches the network, that every
-reference resolves, that the client and skin lists agree with what is on disk
-(including that the served skins listing really is the folder listing, and that
-a baked `skins/list.js` is valid), and that the launcher renders and behaves. `browser-test.mjs` drives Chromium
-against the real page, off disk and over http://, and can boot the five game
-builds (`--no-games` skips that).
+reference resolves, that the client and skin lists agree with what is on
+disk (including that `bake-skins.py` output matches the folders on disk),
+and that the launcher renders and behaves — the download button included,
+both its blob path and its off-disk fallback. `browser-test.mjs` drives
+Chromium against the real page off disk, clicks the download button for
+real, and can boot the five game builds (`--no-games` skips that).
+
+Both skip cleanly when `jsdom` / `puppeteer-core` (+ a Chromium) are not
+installed.
 
 ## Credits
 
-Eaglercraft and EaglerXServer by lax1dude and contributors. Launcher UI by
-irv77. Roboto (SIL OFL) via @fontsource.
+Eaglercraft by lax1dude and contributors. Launcher UI by irv77. Roboto
+(SIL OFL) via @fontsource.

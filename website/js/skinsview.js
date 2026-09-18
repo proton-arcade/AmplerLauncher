@@ -1,20 +1,19 @@
 /*
  * Ampler Launcher - the Skins page.
  *
- * Reads js/skins.js plus the folder listing and lays the skins out as boxes
- * over the same background the Play page uses, small gap between them:
- * the preview picture on top of the box, the name in the bottom left and the
- * download button in the bottom right.
+ * Reads js/skins.js (kept in step with website/skins/ by tools/bake-skins.py)
+ * and lays the skins out as boxes over the same background the Play page
+ * uses, small gap between them: the preview picture on top of the box, the
+ * name in the bottom left and the download button in the bottom right.
  *
  * Zero setup:
- *   - a skin folder is all it takes (see js/skins.js for the layout). Served by
- *     website/tools/serve.py, folders are found on reload with nothing to edit;
+ *   - a skin folder is all it takes (see js/skins.js for the layout);
  *   - if a folder has no preview file, the picture is drawn from the skin
  *     itself - head, body, arms and legs of the classic 64x64 layout;
- *   - "Add skin folder" loads folders straight off the disk for the session.
+ *   - the search box in the head row filters the grid as you type.
  *
- * Downloading copies the original skin file (.png) out of the folder, exactly
- * as it sits on disk - nothing is re-encoded.
+ * Downloading hands the original skin file (.png) to the browser, exactly as
+ * it sits on disk - nothing is re-encoded. See downloadSkin below for how.
  */
 
 var SKIN_PREVIEW_COLUMNS = 16;
@@ -46,12 +45,6 @@ function sg(id) {
  * Building the library
  * ------------------------------------------------------------------ */
 
-function isImageName(name) {
-    var types = window.AMPLER_SKIN_TYPES || ['png'];
-    var ext = String(name).split('.').pop().toLowerCase();
-    return types.indexOf(ext) !== -1;
-}
-
 function stripExtension(name) {
     return String(name).replace(/\.[A-Za-z0-9]+$/, '');
 }
@@ -67,15 +60,13 @@ function staticSkinEntry(name) {
         folder: folder,
         fileName: skinName,
         skinUrl: folder + encodeURIComponent(skinName),
-        previewUrl: folder + encodeURIComponent(prefix + skinName),
-        session: false
+        previewUrl: folder + encodeURIComponent(prefix + skinName)
     };
 }
 
-/* The library is the manifest (website/js/skins.js) plus whatever folders the
-   page was told about. Served by tools/serve.py that second list is the real
-   directory listing, so a folder dropped into website/skins/ turns up on its
-   own; from file:// it is empty and the manifest decides, in its own order. */
+/* The library is the manifest (website/js/skins.js) plus whatever folders
+   tools/bake-skins.py wrote into skins/list.js, in that order. A name is
+   only ever added once. */
 function buildLibrary() {
     var seen = {};
 
@@ -91,84 +82,6 @@ function buildLibrary() {
         add(typeof entry === 'string' ? entry : entry.name);
     });
     (window.AMPLER_SKINS_FROM_DIR || []).forEach(add);
-}
-
-/* Pull a skin and its preview out of one folder's worth of files. The naming
-   rule is the documented one ( <name>.png + preview.<name>.png ); anything
-   else in the folder is treated as a candidate so an oddly named skin still
-   loads instead of silently vanishing. */
-function skinFromFolder(name, entries) {
-    var lower = name.toLowerCase();
-    var preview = null;
-    var skin = null;
-    var i;
-
-    for (i = 0; i < entries.length; i++) {
-        if (/^preview[._-]/.test(entries[i].base.toLowerCase())) { preview = entries[i]; break; }
-    }
-    for (i = 0; i < entries.length; i++) {
-        if (entries[i] === preview) continue;
-        if (stripExtension(entries[i].base).toLowerCase() === lower) { skin = entries[i]; break; }
-    }
-    if (!skin) {
-        for (i = 0; i < entries.length; i++) {
-            if (entries[i] !== preview) { skin = entries[i]; break; }
-        }
-    }
-    if (!skin) skin = preview;
-    if (!skin) return null;
-
-    return {
-        name: name,
-        folder: '',
-        fileName: skin.base,
-        skinUrl: URL.createObjectURL(skin.file),
-        previewUrl: preview ? URL.createObjectURL(preview.file) : null,
-        session: true
-    };
-}
-
-/* Object URLs are only alive until the page unloads, so anything we are not
-   going to show any more gets released by hand. Listed skins have no blobs to
-   release - they point straight at files. */
-function releaseBlobs(entry) {
-    if (!entry || !entry.session) return;
-    try { URL.revokeObjectURL(entry.skinUrl); } catch (e) { /* nothing to do */ }
-    if (entry.previewUrl) {
-        try { URL.revokeObjectURL(entry.previewUrl); } catch (e) { /* nothing to do */ }
-    }
-}
-
-function addSkinFolders(fileList) {
-    var groups = {};
-    var order = [];
-
-    Array.prototype.forEach.call(fileList, function (file) {
-        if (!isImageName(file.name)) return;
-        var path = file.webkitRelativePath || file.name;
-        var parts = path.split('/').filter(Boolean);
-        // <picked folder>/<skin folder>/<file>  ->  the skin is the folder name
-        var folder = parts.length >= 2 ? parts[parts.length - 2] : 'Skins';
-        if (!groups[folder]) { groups[folder] = []; order.push(folder); }
-        groups[folder].push({ file: file, base: parts[parts.length - 1] });
-    });
-
-    var added = 0;
-    order.forEach(function (name) {
-        var entry = skinFromFolder(name, groups[name]);
-        if (!entry) return;
-        // a name can only appear once: the folder you just loaded wins over
-        // whichever entry (listed or previously loaded) used that name, and the
-        // blob URLs the replaced one was holding are released with it
-        skinsState.library = skinsState.library.filter(function (s) {
-            if (s.name !== name) return true;
-            releaseBlobs(s);
-            return false;
-        });
-        skinsState.library.push(entry);
-        added++;
-    });
-    return added;
 }
 
 /* ------------------------------------------------------------------ *
@@ -263,7 +176,7 @@ function updateSkinCount() {
 
     sg('skinscount').textContent = known === 0 ? '' :
         (visible !== known ? visible + ' of ' + known + ' skins'
-            : known + (known === 1 ? ' skin' : ' skins') + ' - drop a folder into website/skins/ to add your own');
+            : known + (known === 1 ? ' skin' : ' skins'));
     sg('skinempty').hidden = known !== 0;
     grid.hidden = known === 0;
 }
@@ -337,6 +250,22 @@ function drawSkinPreview(entry, wrap) {
 
 /* ------------------------------------------------------------------ *
  * Download
+ *
+ * Clicking the button must put the skin .png in the browser's Downloads,
+ * exactly as it sits in its folder - never swap this page for the raw
+ * picture (what a bare link does once the browser declines to download).
+ *
+ * The one way a page can hand a file to the Downloads list is a link with
+ * the download attribute pointing at bytes the page itself holds. So:
+ *
+ *   - over http(s) (a static host, a LAN, GitHub Pages, any server) the
+ *     file is read with fetch() and handed back as a blob URL. Always a
+ *     real download.
+ *   - off disk (file://) a page is an opaque origin: fetch() is refused,
+ *     XHR is refused, and the download attribute is ignored - a link click
+ *     would navigate this very tab to the PNG. Nothing in the page can
+ *     reach the bytes, so the skin opens in a new tab instead and the
+ *     browser's own image viewer saves it; this page stays put.
  * ------------------------------------------------------------------ */
 
 function downloadSkin(event, button) {
@@ -347,71 +276,43 @@ function downloadSkin(event, button) {
 
     var card = button;
     while (card && card.getAttribute && !card.getAttribute('data-skin-url')) card = card.parentNode;
-    if (!card || !card.getAttribute) return;
+    if (!card || !card.getAttribute) return null;
 
     var url = card.getAttribute('data-skin-url');
     var fileName = card.getAttribute('data-skin-file') || (card.getAttribute('data-skin-name') + '.png');
-    var name = card.getAttribute('data-skin-name');
 
-    var link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    link.rel = 'noopener';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    var finish = function (href) {
+        var link = document.createElement('a');
+        link.href = href;
+        link.download = fileName;
+        link.rel = 'noopener';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    };
 
-    toast('DOWNLOAD', 'Saved ' + fileName, '#7CFC98');
-    return name;
-}
+    var openInViewer = function () {
+        // The bytes are out of reach (the page is off disk): open the file in
+        // a new tab for a right-click / Ctrl+S save. Never navigate this page.
+        window.open(url, '_blank', 'noopener');
+    };
 
-/* ------------------------------------------------------------------ *
- * "Add skin folder"
- * ------------------------------------------------------------------ */
-
-function pickSkinFolder() {
-    var input = sg('skinfolder');
-    if (!input) return;
-    // Chrome/Edge/Safari/Firefox all honour this; without it the picker still
-    // opens, just without the folder walking.
-    try { input.webkitdirectory = true; } catch (e) { /* ignore */ }
-    input.click();
-}
-
-function initSkinPicker() {
-    var input = sg('skinfolder');
-    if (!input) return;
-
-    // The key handler lives in js/index.js (loaded first); fall back to a local
-    // one so this file still works if it is ever loaded on its own.
-    var button = sg('addfolder');
-    if (button) {
-        if (typeof activateOnKey === 'function') {
-            activateOnKey(button, pickSkinFolder);
-        } else {
-            button.addEventListener('keydown', function (event) {
-                if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'Spacebar') return;
-                event.preventDefault();
-                pickSkinFolder();
-            });
-        }
+    if (typeof window.fetch === 'function' && typeof URL.createObjectURL === 'function') {
+        window.fetch(url).then(function (response) {
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            return response.blob();
+        }).then(function (blob) {
+            var href = URL.createObjectURL(blob);
+            finish(href);
+            // the click above has already started the download, so the URL
+            // can go once the browser has had a fair chance to use it
+            setTimeout(function () {
+                try { URL.revokeObjectURL(href); } catch (e) { /* already gone */ }
+            }, 30000);
+        }).catch(openInViewer);
+    } else {
+        openInViewer();
     }
-    input.addEventListener('change', function () {
-        var files = input.files;
-        if (files && files.length) {
-            var added = addSkinFolders(files);
-            if (added) {
-                if (typeof showView === 'function') showView('skins');
-                renderSkins();
-                toast('SKINS LOADED', added + (added === 1 ? ' skin' : ' skins') +
-                    ' loaded for this session. Nothing is written to disk - drop the folder into ' +
-                    'website/skins/ to keep it.', '#7CFC98');
-            } else {
-                toast('NO SKINS FOUND', 'That folder did not contain any images.', 'goldenrod');
-            }
-        }
-        input.value = '';
-    });
-}
 
-initSkinPicker();
+    return fileName;
+}

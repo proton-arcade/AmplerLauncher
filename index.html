@@ -11,8 +11,6 @@
          no webfont request. css/fonts.css serves Roboto from ./fonts/. -->
     <link rel="stylesheet" href="./website/css/fonts.css">
     <link rel="stylesheet" href="./website/css/style.css">
-    <link rel="stylesheet" media="screen and (max-width: 1100px)" href="./website/css/screensize.css">
-    <link rel="stylesheet" media="screen and (max-height: 550px)" href="./website/css/screensize.css">
     <link rel="shortcut icon" href="./website/images/logo.png" type="image/x-icon">
 
     <!-- Discord embed metadata. Relative-safe: og: tags are only read by chat
@@ -23,13 +21,6 @@
 </head>
 
 <body style="font-family: 'Roboto', sans-serif;">
-    <div id="naerror" class="error">
-        <div>
-            <p style="margin-left: 1vw;" class="bolded">SORRY!</p>
-            <p id="naerror-text" style="color: goldenrod;">This feature hasn't been made yet.</p>
-        </div>
-    </div>
-
     <div class="mainPage" id="mainPage">
 
         <!-- ============================ Top bar ============================ -->
@@ -56,9 +47,10 @@
 
         <!-- ============================ Skins page ============================
              Same background as the Play page, with the skin boxes sitting on
-             top of it and a small gap between them. The list is whatever is in
-             website/skins/: served, the folder listing itself is the list; off
-             disk, the folder picker or js/skins.js names them (see its header). -->
+             top of it and a small gap between them. The list is whatever is
+             in website/skins/: website/js/skins.js names it, and
+             website/tools/bake-skins.py keeps that in step with the folders
+             on disk (see js/skins.js). -->
         <div id="skinsview" class="view skinsView" hidden>
             <div class="skinsScroll" id="skinsscroll">
                 <div class="skinsHead">
@@ -66,21 +58,9 @@
                         <p class="skinsTitle bolded">Skins</p>
                         <p class="skinsCount" id="skinscount"></p>
                     </div>
-                    <div class="skinsTools">
-                        <div class="skinSearch">
-                            <input id="skinsearch" type="text" placeholder="Search skins" spellcheck="false"
-                                autocomplete="off" oninput="filterSkins(this.value)">
-                        </div>
-                        <div class="skinTool" id="addfolder" role="button" tabindex="0" aria-label="Add skin folder"
-                            onclick="pickSkinFolder()" title="Load skin folders from anywhere on this computer">
-                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2" />
-                                <path d="M12 10.5v5" />
-                                <path d="M9.5 13h5" />
-                            </svg>
-                            <p>Add skin folder</p>
-                        </div>
+                    <div class="skinSearch">
+                        <input id="skinsearch" type="text" placeholder="Search skins" spellcheck="false"
+                            autocomplete="off" oninput="filterSkins(this.value)">
                     </div>
                 </div>
 
@@ -93,9 +73,9 @@
                     <pre class="mono">website/skins/my skin/
    my skin.png            the skin
    preview.my skin.png    the preview picture</pre>
-                    <p>That is the whole setup - reload and it is on this page. To remove a skin, delete its folder.</p>
-                    <p>Opened straight off disk? Press <span class="mono">Add skin folder</span> and pick the folder, or
-                        run <span class="mono">python3 website/tools/bake-skins.py</span> once and reload.</p>
+                    <p>Then run <span class="mono">python3 website/tools/bake-skins.py</span> once and reload - that
+                        writes the folder list where this page reads it. To remove a skin, delete its folder and bake
+                        again.</p>
                 </div>
             </div>
         </div>
@@ -145,16 +125,11 @@
         </div>
     </div>
 
-    <!-- "Add skin folder": loads folders straight off the disk for this session,
-         so skins can be tried out without touching the repo. -->
-    <input id="skinfolder" type="file" accept="image/*" multiple hidden>
-
     <script src="./website/js/clients.js"></script>
     <script src="./website/js/skins.js"></script>
-    <!-- Skins that are actually on disk. A plain placeholder file when the
-         launcher is opened off disk; generated from the folder listing by
-         website/tools/serve.py, so dropping a folder into website/skins/ is
-         the whole setup. See website/js/skins.js. -->
+    <!-- The skins folder listing, written by website/tools/bake-skins.py so
+         skins dropped into website/skins/ show up when the launcher is opened
+         straight off disk. A plain placeholder until then. -->
     <script src="./website/skins/list.js"></script>
     <script src="./website/js/index.js"></script>
     <script src="./website/js/skinsview.js"></script>

@@ -18,11 +18,13 @@
  *      js/index.js and js/skinsview.js executed against it. The version
  *      dropdown is driven row by row (every Play href must resolve to a file
  *      that exists), the Play and Skins pages are switched between, every skin
- *      card is checked against website/skins/, and the username is renamed and
- *      read back out of localStorage.
+ *      card is checked against website/skins/, the skin download button is
+ *      driven both ways (blob download, and the new-tab fallback for pages
+ *      opened off disk), and the username is renamed and read back out of
+ *      localStorage.
  *
- * Then, if python3 is available, tools/serve.py is booted and each page is
- * requested over HTTP to confirm it returns 200 with the isolation headers.
+ * Then, if python3 is available, tools/bake-skins.py is run dry and its
+ * listing must match the folders actually on disk.
  *
  * Usage:  node tools/verify-offline.mjs
  * jsdom is optional; install it with `npm i jsdom` for check 3.
@@ -31,7 +33,7 @@
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { join, dirname, relative, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawn, execSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 
 // The repo root is the directory that holds index.html + README.md (everything
 // else lives under website/, so this file may be nested).
@@ -88,14 +90,9 @@ head('1. No file opens a network connection');
 // Things that merely LOOK like URLs but never cause a request.
 const ALLOWED = [
     { re: /^https?:\/\/www\.w3\.org\//, why: 'XML/SVG namespace identifier' },
-    { re: /^https:\/\/discord\.gg\//, why: 'user-initiated window.open() only' },
-    { re: /^https:\/\/github\.com\//, why: 'documentation / setup script URL' },
-    { re: /^https:\/\/www\.python\.org\//, why: 'documentation string' },
+    { re: /^https:\/\/github\.com\//, why: 'documentation / attribution URL' },
     { re: /^http:\/\/localhost(:\d+)?/, why: 'loopback, not the internet' },
     { re: /^http:\/\/127\.0\.0\.1(:\d+)?/, why: 'loopback, not the internet' },
-    { re: /^https:\/\/irv77\.github\.io\//, why: 'attribution text in README' },
-    { re: /^https:\/\/cdn\.eaglercraft\.ru\//, why: 'provenance note in README' },
-    { re: /^ws:\/\/<your-lan-ip>/, why: 'documentation placeholder' },
 ];
 
 // Constructs that actually open a connection.
@@ -142,23 +139,34 @@ if (remoteHits.length === 0) {
     for (const h of [...new Set(remoteHits)]) bad('remote reference: ' + h);
 }
 
-// The LAUNCHER must not call any API that requires a server or the network to
-// render. (The game builds contain WebSocket/fetch/XHR, but those are opt-in
-// multiplayer paths that only fire when the user initiates a connection - the
-// browser test's request watcher confirms 0 of them fire at boot.)
+// The LAUNCHER must not call any API that requires a server or a build step
+// to render. fetch() is allowed in exactly one place - the skin download in
+// js/skinsview.js, which only ever runs when a card's download button is
+// clicked - because a page opened straight off disk cannot read another file
+// any other way (and the fallback opens a viewer tab instead). Comments are
+// stripped first, so a mention of fetch() in prose does not count. (The game
+// builds contain WebSocket/fetch/XHR - those are the game's own opt-in
+// multiplayer paths; the browser test's request watcher confirms 0 of them
+// fire at boot.)
 {
     const launcherFiles = ALL.filter((f) =>
         rel(f) === 'index.html' || rel(f).startsWith('website/js/') || rel(f).startsWith('website/css/'));
-    const REQUIRED = ['XMLHttpRequest', 'navigator.serviceWorker', 'importScripts', 'type="module"'];
+    const BANNED = ['XMLHttpRequest', 'navigator.serviceWorker', 'importScripts', 'type="module"'];
+    const stripComments = (s) => s
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/^\s*\/\/.*$/gm, '');
     let hits = 0;
     for (const f of launcherFiles) {
-        const text = readFileSync(f, 'utf8');
-        for (const tok of REQUIRED) {
-            const n = text.split(tok).length - 1;
+        const raw = readFileSync(f, 'utf8');
+        for (const tok of BANNED) {
+            const n = raw.split(tok).length - 1;
             if (n) { hits++; bad('launcher ' + rel(f) + ' uses server-requiring API ' + tok + ' x' + n); }
         }
+        if (rel(f) !== 'website/js/skinsview.js' && /\bfetch\s*\(/.test(stripComments(raw))) {
+            hits++; bad('launcher ' + rel(f) + ' calls fetch() (only js/skinsview.js may, for the download)');
+        }
     }
-    if (hits === 0) ok('launcher uses none of fetch/XMLHttpRequest/import()/module/serviceWorker');
+    if (hits === 0) ok('launcher uses no server-requiring API; fetch() appears only in the skin download');
 }
 
 // Prove the scan is not vacuous: it must catch the original Google Fonts tag.
@@ -257,7 +265,7 @@ head('2b. Sizes scale with the window, phones are handled separately');
     };
 
     const mixed = [];
-    for (const file of ['website/css/style.css', 'website/css/screensize.css', 'website/css/fonts.css']) {
+    for (const file of ['website/css/style.css', 'website/css/fonts.css']) {
         if (!existsSync(join(ROOT, file))) continue;
         const css = readFileSync(join(ROOT, file), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
         for (const hit of vwPxMixes(css)) mixed.push(file + ': ' + hit);
@@ -273,30 +281,11 @@ head('2b. Sizes scale with the window, phones are handled separately');
         bad('the vw/px detector does not detect the regression it exists for');
     }
 
-    // ...and the phone rules stay in one small-window query: last block in
-    // screensize.css, guarded by both width and height, all px inside.
-    const sizeCss = readFileSync(join(ROOT, 'website/css/screensize.css'), 'utf8');
-    const phoneAt = sizeCss.search(/@media[^{]*max-width:\s*768px/);
-    if (phoneAt === -1) {
-        bad('screensize.css has no phone-sized media query');
+    // the old small-window/phone stylesheet is gone: one design, everywhere
+    if (!existsSync(join(ROOT, 'website/css/screensize.css'))) {
+        ok('no screensize.css - the launcher is one layout at every window size');
     } else {
-        const phone = sizeCss.slice(phoneAt);
-        const bare = phone.replace(/\/\*[\s\S]*?\*\//g, '');
-        const guarded = /max-width:\s*768px/.test(phone) && /max-height:\s*480px/.test(phone);
-        const only = (bare.match(/@media/g) || []).length === 1;
-        const pxOnly = !/\d(?:\.\d+)?vw/.test(bare);
-        const rules = (bare.match(/\{/g) || []).length - 1;
-        // the query closes and nothing at all follows it
-        let depth = 0;
-        for (const ch of bare) {
-            if (ch === '{') depth++;
-            else if (ch === '}') { depth--; if (depth < 0) depth = NaN; }
-        }
-        const closedLast = depth === 0;
-        guarded && only && pxOnly && closedLast
-            ? ok('phone sizing is one ' + rules + '-rule block in the last (max-width 768px / max-height 480px) query')
-            : bad('phone media query: guarded=' + guarded + ' singleBlock=' + only +
-                  ' pxOnly=' + pxOnly + ' closedLast=' + closedLast);
+        bad('website/css/screensize.css is still there');
     }
 }
 
@@ -423,17 +412,16 @@ if (SKINS.length === 0) {
         }
     }
 
-    // Folders that are on disk but not in the list still show up whenever the
-    // launcher is served by tools/serve.py (it answers website/skins/list.js
-    // from the directory listing). Off disk and on plain static servers the
-    // list is what the page goes by, so this is a note, not a failure.
+    // Folders that are on disk but not in js/skins.js still reach the page
+    // through website/skins/list.js - tools/bake-skins.py writes them there.
+    // This is a note, not a failure: run the tool and reload.
     const foldersOnDisk = readdirSync(SKIN_FOLDER)
         .filter((n) => !n.startsWith('.') && statSync(join(SKIN_FOLDER, n)).isDirectory());
     const unlisted = foldersOnDisk.filter((n) => !SKINS.includes(n));
     unlisted.length === 0
         ? ok('every skin folder on disk is also in js/skins.js (' + foldersOnDisk.length + ')')
         : skipped('on disk but not in js/skins.js: ' + unlisted.join(', ') +
-                  ' - they still appear when served, add the line for file:// use');
+                  ' - run tools/bake-skins.py (or add a line in js/skins.js) and reload');
 }
 
 /* ---- jsdom: actually run the launcher ---- */
@@ -642,6 +630,50 @@ if (SKINS.length === 0) {
             .filter((h) => /^https?:/i.test(h));
         assert(remoteLinks.length === 0, 'index.html <head> has 0 remote stylesheets');
 
+        /* ---- no popups, no folder picker ---- */
+        assert(!d.getElementById('naerror'), 'the toast popup is gone from the markup');
+        assert(!d.getElementById('addfolder') && !d.getElementById('skinfolder'),
+            'the "Add skin folder" picker is gone from the markup');
+        assert(d.querySelector('.skinsHead .skinSearch input#skinsearch'),
+            'the search box sits in the skins head on its own');
+
+        /* ---- the download button ---- */
+        {
+            // readable-origin case: fetch works and the bytes come back as a blob
+            const realSetTimeout = win.setTimeout;
+            let objectUrl = null, viewerTab = null, revoked = [];
+            win.fetch = () => Promise.resolve({ ok: true, blob: () => Promise.resolve({ size: 1234 }) });
+            win.URL.createObjectURL = () => (objectUrl = 'blob:mock-' + Math.random());
+            win.URL.revokeObjectURL = (u) => revoked.push(u);
+            win.open = (u) => (viewerTab = u);
+            // the blob's 30s revoke timer would keep node alive - run it now
+            win.setTimeout = (fn, ms) => { if (ms >= 30000) { fn(); return 0; } return realSetTimeout(fn, ms); };
+
+            win.showView('skins');
+            const button = d.querySelector('#skingrid .skinCard .skinDownload');
+            button.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+            await new Promise((r) => realSetTimeout(r, 20));
+            assert(objectUrl !== null && revoked.indexOf(objectUrl) !== -1,
+                'the download read the skin, handed the browser a blob URL and released it');
+            assert(viewerTab === null, 'with the bytes in hand, no viewer tab is needed');
+
+            // off disk the bytes are unreachable: the skin opens in a new tab,
+            // and this page must stay put
+            win.fetch = () => Promise.reject(new Error('opaque origin'));
+            const second = d.querySelectorAll('#skingrid .skinCard .skinDownload')[1];
+            second.dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+            await new Promise((r) => realSetTimeout(r, 20));
+            assert(viewerTab !== null && viewerTab.indexOf('website/skins/') !== -1,
+                'off disk the skin opens in a viewer tab instead of replacing the page');
+            assert(d.getElementById('playview').hidden && !d.getElementById('skinsview').hidden,
+                'the launcher page itself never navigates away (still on the skins view)');
+
+            delete win.fetch;
+            win.setTimeout = realSetTimeout;
+            win.open = () => null;
+            win.showView('play');
+        }
+
         /* ---- the no-server path: boot from a file:// URL ---- */
         const fileDom = new JSDOM(html, {
             runScripts: 'outside-only',
@@ -678,93 +710,33 @@ if (SKINS.length === 0) {
 }
 
 /* ------------------------------------------------------------------ *
- * 4. Served over HTTP
+ * 4. bake-skins.py agrees with disk
  * ------------------------------------------------------------------ */
 
-head('4. tools/serve.py serves every page with isolation headers');
+head('4. tools/bake-skins.py describes exactly the folders on disk');
 
 function pythonAvailable() {
-    try { spawn('python3', ['--version']); return true; } catch { return false; }
+    try { execSync('python3 --version', { stdio: 'ignore' }); return true; } catch { return false; }
 }
 
 if (!pythonAvailable()) {
-    skipped('python3 not found - skipping HTTP test');
+    skipped('python3 not found - skipping the bake-skins check');
 } else {
-    const port = 8000 + Math.floor(Math.random() * 1000);
-    const srv = spawn('python3', [join(ROOT, 'website', 'tools', 'serve.py'),
-        '--port', String(port), '--host', '127.0.0.1', '--no-browser'],
-        { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
-
-    let booted = false;
-    srv.stdout.on('data', (b) => { if (String(b).includes('Ampler Launcher')) booted = true; });
-    srv.stderr.on('data', () => {});
-
-    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-    for (let i = 0; i < 50 && !booted; i++) await sleep(100);
-
-    if (!booted) {
-        bad('server did not announce itself within 5s');
-    } else {
-        const base = 'http://127.0.0.1:' + port + '/';
-        const targets = ['index.html', 'website/css/style.css', 'website/css/fonts.css',
-            'website/js/index.js', 'website/js/clients.js', 'website/js/skins.js', 'website/js/skinsview.js',
-            'website/fonts/roboto-latin-400-normal.woff2',
-            ...CLIENTS.filter((c) => c.bundled).map((c) => c.path),
-            ...SKINS.flatMap((n) => {
-                const dir = 'website/skins/' + encodeURIComponent(n) + '/' + encodeURIComponent(n);
-                return [dir + '.png', dir.replace(/[^/]+$/, SKIN_PREFIX + '$&') + '.png'];
-            })];
-
-        for (const t of targets) {
-            try {
-                const r = await fetch(base + t);
-                const coop = r.headers.get('cross-origin-opener-policy');
-                const coep = r.headers.get('cross-origin-embedder-policy');
-                if (r.status !== 200) bad('HTTP ' + r.status + ' for ' + t);
-                else if (t === 'index.html' && (coop !== 'same-origin' || coep !== 'require-corp'))
-                    bad('missing isolation headers on ' + t + ' (coop=' + coop + ' coep=' + coep + ')');
-                else ok('200 ' + t + (t === 'index.html' ? '  [coop+coep present]' : ''));
-            } catch (e) {
-                bad('request failed for ' + t + ': ' + e.message);
-            }
-        }
+    try {
+        const dry = execSync('python3 ' + join(ROOT, 'website', 'tools', 'bake-skins.py') + ' --dry-run',
+            { cwd: ROOT }).toString();
+        const m = /window\.AMPLER_SKINS_FROM_DIR\s*=\s*(\[[^\]]*\])/.exec(dry);
+        const got = m ? JSON.parse(m[1]) : null;
+        const want = readdirSync(SKIN_FOLDER)
+            .filter((n) => !n.startsWith('.') && statSync(join(SKIN_FOLDER, n)).isDirectory())
+            .filter((n) => readdirSync(join(SKIN_FOLDER, n))
+                .some((f) => ['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(extname(f).toLowerCase())));
+        got && JSON.stringify(got) === JSON.stringify(want)
+            ? ok('the baked listing is the folder listing (' + want.join(', ') + ')')
+            : bad('baked listing ' + JSON.stringify(got) + ' != folders on disk ' + JSON.stringify(want));
+    } catch (e) {
+        bad('bake-skins.py --dry-run failed: ' + e.message);
     }
-    // The Skins page's folder listing is generated per request, not shipped.
-    if (booted) {
-        const base = 'http://127.0.0.1:' + port + '/';
-        try {
-            const r = await fetch(base + 'website/skins/list.js');
-            const text = await r.text();
-            const m = /window\.AMPLER_SKINS_FROM_DIR\s*=\s*(\[[^\]]*\])/.exec(text);
-            const got = m ? JSON.parse(m[1]) : null;
-            const want = readdirSync(SKIN_FOLDER)
-                .filter((n) => !n.startsWith('.') && statSync(join(SKIN_FOLDER, n)).isDirectory())
-                .filter((n) => readdirSync(join(SKIN_FOLDER, n))
-                    .some((f) => ['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(extname(f).toLowerCase())));
-            got && JSON.stringify(got) === JSON.stringify(want)
-                ? ok('the served skins listing is the live folder listing (' + want.join(', ') + ')')
-                : bad('served skins listing ' + JSON.stringify(got) + ' != folders on disk ' + JSON.stringify(want));
-        } catch (e) {
-            bad('skins listing request failed: ' + e.message);
-        }
-
-        // tools/bake-skins.py must produce exactly what the server generates,
-        // or the two ways of listing the same folder would drift apart.
-        try {
-            const dry = execSync('python3 ' + join(ROOT, 'website', 'tools', 'bake-skins.py') + ' --dry-run',
-                { cwd: ROOT }).toString();
-            const served = await (await fetch(base + 'website/skins/list.js')).text();
-            dry.trim() === served.trim()
-                ? ok('bake-skins.py agrees with serve.py on the folder listing')
-                : bad('bake-skins.py output differs from the served listing:\n' +
-                      '    baked : ' + dry.trim().split('\n').pop() + '\n' +
-                      '    served: ' + served.trim().split('\n').pop());
-        } catch (e) {
-            bad('bake-skins.py --dry-run failed: ' + e.message);
-        }
-    }
-
-    srv.kill('SIGTERM');
 }
 
 /* ------------------------------------------------------------------ *

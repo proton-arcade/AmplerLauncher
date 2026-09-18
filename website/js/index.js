@@ -15,10 +15,8 @@
  *
  * The bundled builds are the official Eaglercraft "offline download" single
  * files, which are built to be opened directly - so double-clicking index.html
- * is a first-class way to run this, not a fallback. tools/serve.py stays
- * around only for the cases where a plain http:// origin genuinely helps
- * (SharedArrayBuffer for the WASM builds, or serving to another device on the
- * LAN). See README.md.
+ * is the way to run this. There is no server in this launcher: everything on
+ * the page works from the file system alone. See README.md.
  */
 
 var SVG_DOWN = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dropdownIcon"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 9l6 6l6 -6" /></svg>';
@@ -94,30 +92,6 @@ function escapeHtml(s) {
 }
 
 /* ------------------------------------------------------------------ *
- * Toast
- * ------------------------------------------------------------------ */
-
-var toastTimers = [];
-
-function toast(title, body, colour) {
-    var box = el('naerror');
-    el('naerror-text').innerHTML = escapeHtml(body);
-    box.querySelector('p.bolded').textContent = title;
-    box.style.color = colour || 'gold';
-    box.style.borderColor = colour || 'gold';
-    box.classList.remove('zoom-out');
-    box.style.display = 'block';
-
-    toastTimers.forEach(clearTimeout);
-    toastTimers = [];
-    toastTimers.push(setTimeout(function () { box.classList.add('zoom-out'); }, 5200));
-    toastTimers.push(setTimeout(function () {
-        box.classList.remove('zoom-out');
-        box.style.display = 'none';
-    }, 5400));
-}
-
-/* ------------------------------------------------------------------ *
  * Views - Play / Skins
  * ------------------------------------------------------------------ */
 
@@ -183,12 +157,10 @@ function buildDropdown() {
 
 // Rows tile upward from the bar, offset by the height the stylesheet actually
 // gave them, so the list stays tight at any window size. The height is
-// measured rather than assumed because it is 5vw on a desktop and a flat 44px
-// on a phone (see the phone block in screensize.css); if it cannot be measured
-// (jsdom, or a display:none page) it falls back to the 5vw the design asks for.
+// measured rather than assumed; if it cannot be measured (jsdom, or a
+// display:none page) it falls back to the 5vw the design asks for.
 // Runs again whenever the list opens and whenever the window changes size, so
-// resizing across that breakpoint - or turning a phone - does not leave the
-// rows stacked at their old height.
+// a resize never leaves the rows stacked at their old height.
 function stackDropdownRows() {
     var menu = el('dropdn');
     if (!menu) return;
@@ -221,16 +193,12 @@ function selectClient(id, silent) {
         button.style.cursor = 'pointer';
         button.onclick = null;
     } else {
-        // Never hand back a URL that 404s. Intercept and explain instead.
+        // Never hand back a URL that 404s. The build is not in this copy of
+        // the launcher, so the button refuses the click - the not-allowed
+        // cursor is the whole message, there are no popups here.
         button.href = '#';
         button.style.cursor = 'not-allowed';
-        button.onclick = function (event) {
-            event.preventDefault();
-            toast('NOT BUNDLED',
-                client.title + ' is not included in the offline build. Drop a self-contained HTML build at ' +
-                client.path + ' and set bundled:true for "' + client.id + '" in js/clients.js.',
-                'goldenrod');
-        };
+        button.onclick = function (event) { event.preventDefault(); };
     }
 
     if (!silent) saveStore({ clientId: id });
@@ -330,8 +298,8 @@ function init() {
     activateOnKey(el('drop'), function () { dropdowntoggle(); });
     activateOnKey(el('userbox'), function () { editUser(); });
 
-    // The rows are offset in px from their measured height, so a resize (or a
-    // phone being turned) needs them measured again.
+    // The rows are offset in px from their measured height, so a resize
+    // needs them measured again.
     window.addEventListener('resize', stackDropdownRows);
 
     // Escape closes the version list, wherever the focus happens to be.

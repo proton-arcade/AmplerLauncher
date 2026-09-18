@@ -7,12 +7,12 @@
  *
  *   A. The launcher works when opened straight off disk (file://), with no
  *      server running, and it issues ZERO network requests.
- *   B. The same holds over http:// when the optional server IS running.
- *   C. The Play page and the Skins page both behave: every dropdown row goes
- *      somewhere real, the skins grid matches website/skins/, the username can
- *      be renamed and is remembered, and the skins page shows no logo, no Play
- *      button and no version selector.
- *   D. Each bundled game build actually loads and starts under file://.
+ *   B. The Play page and the Skins page both behave: every dropdown row goes
+ *      somewhere real, the skins grid matches website/skins/, the username
+ *      can be renamed and is remembered, the skins page shows no logo, no
+ *      Play button and no version selector, and the download button never
+ *      swaps the launcher page for the raw PNG.
+ *   C. Each bundled game build actually loads and starts under file://.
  *
  * Browser resolution, in order:
  *   1. $BROWSER_PATH
@@ -23,10 +23,8 @@
  * Requires puppeteer-core; skips cleanly if it is not installed.
  */
 
-import { spawn } from 'node:child_process';
-import { existsSync, readFileSync, mkdirSync, copyFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 
@@ -75,8 +73,8 @@ if (!found) { console.log('No Chromium found. Set $BROWSER_PATH.'); process.exit
 
 const browser = await puppeteer.launch({
     executablePath: found.path,
-    args: ['--no-sandbox', '--disable-dev-shm-usage', '--allow-file-access-from-files', ...found.args],
-    headless: true,
+    args: ['--no-sandbox', '--disable-dev-shm-usage', ...found.args],
+
     defaultViewport: { width: 1600, height: 900 },
 });
 
@@ -188,7 +186,7 @@ async function driveLauncher(label, url) {
             ? ok('Enter opens the skins page (' + viaKeyboard.cards + ' cards)')
             : bad('Enter on the Skins tab did not open the skins page');
 
-        // from the tab to a download button, then start a download with Enter
+        // from the tab into the grid, far enough to reach a download button
         let reachedButton = false;
         for (let i = 0; i < 10 && !reachedButton; i++) {
             await page.keyboard.press('Tab');
@@ -302,31 +300,37 @@ async function driveLauncher(label, url) {
         ? ok('the skins page keeps the user ("' + skins.user + '")')
         : bad('the user is missing on the skins page (' + skins.user + ')');
 
-    // Download one skin and check the bytes that come out match the file on disk.
+    // Download one skin. The page here is off disk, and an off-disk page may
+    // not read another file (fetch and XHR are refused, and the download
+    // attribute is ignored - a bare link would swap this page for the raw
+    // PNG). So the click must open the skin in a viewer tab while this page
+    // stays put. Over http the same click reads the bytes and hands the
+    // browser a real download (covered by the jsdom tests in verify-offline).
     const first = await page.$eval('#skingrid .skinCard', (c) => ({
         url: c.getAttribute('data-skin-url'),
         file: c.getAttribute('data-skin-file'),
     }));
     const diskPath = join(ROOT, decodeURIComponent(first.url.replace(/^\.\//, '')));
     const disk = readFileSync(diskPath);
-    if (!url.startsWith('file:')) {
-        // Over http:// the button's href can be followed and compared byte for byte.
-        const fetched = await page.evaluate(async (u) => {
-            const r = await fetch(u);
-            const b = new Uint8Array(await r.arrayBuffer());
-            return { ok: r.ok, bytes: b.length, head: [b[0], b[1], b[2], b[3]] };
-        }, first.url);
-        fetched.ok && fetched.bytes === disk.length && fetched.head[0] === disk[0]
-            ? ok('the download button serves the skin file itself (' + first.file + ', ' + disk.length + ' B)')
-            : bad('download mismatch for ' + first.file + ': ' + JSON.stringify(fetched) + ' vs ' + disk.length + ' B');
-    } else {
-        // Off disk there is nothing to fetch, so check the file the button names
-        // is the real skin (PNG magic) and that the button carries it as a download.
-        const buttonDownload = await page.$eval('#skingrid .skinCard .skinDownload', () => true);
-        disk.length > 0 && disk[0] === 0x89 && disk[1] === 0x50 && buttonDownload
-            ? ok('the download button names the real skin file (' + first.file + ', ' + disk.length + ' B)')
-            : bad('skin file looks wrong: ' + diskPath);
-    }
+    disk.length > 0 && disk[0] === 0x89 && disk[1] === 0x50
+        ? ok('the download button points at the real skin file (' + first.file + ', ' + disk.length + ' B)')
+        : bad('skin file looks wrong: ' + diskPath);
+
+    const popupPromise = new Promise((resolve) => {
+        const timer = setTimeout(() => resolve(null), 8000);
+        browser.once('targetcreated', (target) => { clearTimeout(timer); resolve(target.url()); });
+    });
+    await page.click('#skingrid .skinCard .skinDownload');
+    const popup = await popupPromise;
+    popup && popup.indexOf('/website/skins/') !== -1
+        ? ok('the download opens the skin in a viewer tab (' +
+             decodeURIComponent(popup.split('/').pop() || '') + ')')
+        : bad('clicking download did not open the skin in a viewer tab (got ' + popup + ')');
+    const stillLauncher = await page.evaluate(() =>
+        !!document.getElementById('skingrid') && !!document.querySelector('#skingrid .skinCard'));
+    stillLauncher
+        ? ok('the launcher page was not replaced by the raw PNG')
+        : bad('the launcher page navigated away on download');
 
     // and back to Play
     await page.click('#header1');
@@ -340,191 +344,12 @@ async function driveLauncher(label, url) {
         bad('going back to Play lost the button/selector');
     existsSync(join(ROOT, back.href)) ? ok('Play still points at a real build') : bad('Play points at ' + back.href);
 
-    /* ---- phones: the same launcher, sized for a thumb ---- *
-     * On a 390px window the bar used to come out 18px tall with 5px text and
-     * the skins download button a 9px square. screensize.css now carries a
-     * phone block (bar becomes a row, vw sizes become px) which must not
-     * touch any other window size - the pixel diff against the previous
-     * commit is part of the review. */
-    const phonePage = await browser.newPage();
-    const phoneSeen = watch(phonePage);
-    await phonePage.setViewport({ width: 390, height: 844, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
-    await phonePage.goto(url, { waitUntil: 'load', timeout: 60000 });
-    await new Promise((r) => setTimeout(r, 600));
-
-    const phone = await phonePage.evaluate(() => {
-        const box = (sel) => {
-            const e = document.querySelector(sel);
-            if (!e) return null;
-            const r = e.getBoundingClientRect();
-            return { x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom };
-        };
-        return {
-            window: [innerWidth, innerHeight],
-            scrollW: document.documentElement.scrollWidth,
-            bar: box('.gameSelection'), drop: box('#drop'), play: box('.playButton'),
-            user: box('#userbox'), label: box('.versionText'),
-            labelText: document.getElementById('gameversion').textContent,
-        };
-    });
-
-    const phoneItems = [['version selector', phone.drop], ['Play', phone.play], ['the user', phone.user]];
-    const tooSmall = phoneItems.filter(([, b]) => !b || b.h < 44);
-    tooSmall.length === 0
-        ? ok('phone: bar ' + Math.round(phone.bar.h) + 'px with version selector ' + Math.round(phone.drop.h) +
-             ', Play ' + Math.round(phone.play.h) + ', the user ' + Math.round(phone.user.h) + ' - all tappable')
-        : bad('phone: too small to tap: ' + tooSmall.map(([n]) => n).join(', '));
-
-    const laidOut = phone.drop.right <= phone.play.x + 1 && phone.play.right <= phone.user.x + 1 &&
-        phone.play.y >= phone.bar.y - 1 && phone.user.bottom <= phone.bar.bottom + 1 &&
-        phone.label.bottom <= phone.bar.bottom + 1 && phone.label.y >= phone.bar.y - 1;
-    laidOut
-        ? ok('phone: the bar is a row - no overlap, and the version label stays inside it')
-        : bad('phone: bar items overlap or spill: ' + JSON.stringify({
-            dropRight: phone.drop.right, playX: phone.play.x, userX: phone.user.x,
-            label: [phone.label.y, phone.label.bottom], bar: [phone.bar.y, phone.bar.bottom] }));
-
-    phone.scrollW <= phone.window[0] + 1
-        ? ok('phone: nothing overflows the ' + phone.window[0] + 'px window')
-        : bad('phone: the page is ' + phone.scrollW + 'px wide in a ' + phone.window[0] + 'px window');
-
-    await phonePage.click('#drop');
-    await new Promise((r) => setTimeout(r, 500));
-    const phoneList = await phonePage.evaluate(() => {
-        const rows = [...document.querySelectorAll('#dropdn > *')].map((e) => {
-            const r = e.getBoundingClientRect();
-            return { x: r.x, h: r.height, right: r.right, bottom: r.bottom };
-        });
-        return { rows, barTop: document.querySelector('.gameSelection').getBoundingClientRect().y };
-    });
-    const listOk = phoneList.rows.length > 0 &&
-        phoneList.rows.every((r) => r.h >= 44) &&
-        phoneList.rows.every((r) => r.x >= -0.5 && r.right <= phone.window[0] + 0.5) &&
-        Math.max(...phoneList.rows.map((r) => r.bottom)) <= phoneList.barTop + 1;
-    listOk
-        ? ok('phone: the version list opens above the bar, ' + phoneList.rows.length + ' rows of ' +
-             Math.round(phoneList.rows[0].h) + 'px')
-        : bad('phone: version list layout: ' + JSON.stringify(phoneList));
-
-    await phonePage.click('#header2');
-    await new Promise((r) => setTimeout(r, 700));
-    const phoneSkins = await phonePage.evaluate(() => {
-        const box = (sel) => {
-            const e = document.querySelector(sel);
-            if (!e) return null;
-            const r = e.getBoundingClientRect();
-            return { w: r.width, h: r.height, right: r.right, bottom: r.bottom };
-        };
-        return {
-            cards: document.querySelectorAll('#skingrid .skinCard').length,
-            preview: box('.skinPreviewWrap'), download: box('.skinDownload'), user: box('#userbox'),
-            window: [innerWidth, innerHeight], scrollW: document.documentElement.scrollWidth,
-        };
-    });
-    const skinsPhoneOk = phoneSkins.cards > 0 && phoneSkins.preview.h >= 100 &&
-        phoneSkins.download.h >= 30 && phoneSkins.download.w >= 30 &&
-        phoneSkins.user.right >= phoneSkins.window[0] - 24 && phoneSkins.scrollW <= phoneSkins.window[0] + 1;
-    skinsPhoneOk
-        ? ok('phone: skins page keeps ' + phoneSkins.cards + ' cards, preview ' + Math.round(phoneSkins.preview.h) +
-             'px, download button ' + Math.round(phoneSkins.download.w) + 'px, user bottom-right')
-        : bad('phone: skins page layout: ' + JSON.stringify(phoneSkins));
-
-    phoneSeen.external.length === 0
-        ? ok('phone: 0 requests left the machine')
-        : bad('phone: external requests: ' + [...new Set(phoneSeen.external)].join(', '));
-    await phonePage.close();
-
     // The launcher must not reach out.
     seen.external.length === 0
         ? ok('0 requests left the machine (' + seen.local + ' local)')
         : bad('external requests: ' + [...new Set(seen.external)].join(', '));
     pageErrors.length === 0 ? ok('0 uncaught page errors') : bad('page errors: ' + pageErrors.join(' | '));
 
-    /* ---- dropping a folder in is the whole setup (served only) ---- */
-    const tempSkin = 'zz-browser-test';
-    const tempDir = join(ROOT, 'website', 'skins', tempSkin);
-    let droppedFolder = null;
-    try {
-        mkdirSync(tempDir, { recursive: true });
-        // a bare <name>.png with no preview file: the card must draw the
-        // character from the skin itself
-        copyFileSync(join(ROOT, 'website', 'skins', 'creeper', 'creeper.png'),
-                     join(tempDir, tempSkin + '.png'));
-        await page.reload({ waitUntil: 'load' });
-        await page.click('#header2');
-        await new Promise((r) => setTimeout(r, 800));
-        droppedFolder = await page.evaluate((n) => {
-            const card = document.querySelector('#skingrid .skinCard[data-skin-name="' + n + '"]');
-            if (!card) return null;
-            return {
-                name: card.querySelector('.skinName').textContent,
-                canvas: !!card.querySelector('canvas'),
-                download: card.querySelector('.skinDownload').getAttribute('title'),
-            };
-        }, tempSkin);
-        if (!url.startsWith('file:') && droppedFolder && droppedFolder.name === tempSkin && droppedFolder.canvas) {
-            ok('a folder dropped into website/skins/ appears on its own ("' + tempSkin + '", preview drawn from the skin)');
-        } else if (url.startsWith('file:')) {
-            droppedFolder === null
-                ? ok('off disk the page goes by js/skins.js, as documented')
-                : bad('a folder not in js/skins.js showed up off disk: ' + JSON.stringify(droppedFolder));
-        } else {
-            bad('dropped folder did not appear correctly: ' + JSON.stringify(droppedFolder));
-        }
-    } catch (e) {
-        bad('folder-drop check threw: ' + e.message);
-    } finally {
-        rmSync(tempDir, { recursive: true, force: true });
-        if (!url.startsWith('file:')) {
-            await page.reload({ waitUntil: 'load' });
-            await page.click('#header2');
-            await new Promise((r) => setTimeout(r, 600));
-            const gone = await page.$$eval('#skingrid .skinCard', (n) => n.length);
-            gone === ctx.AMPLER_SKINS.length
-                ? ok('deleting the folder removes the skin again (' + gone + ' back)')
-                : bad('after deleting the folder the grid shows ' + gone + ' cards');
-        }
-    }
-
-    /* ---- "Add skin folder": a real folder handed to the real picker ---- */
-    const pickDir = join(tmpdir(), 'ampler-picker-test');
-    rmSync(pickDir, { recursive: true, force: true });
-    mkdirSync(join(pickDir, 'pick skin'), { recursive: true });
-    copyFileSync(join(ROOT, 'website', 'skins', 'creeper', 'creeper.png'),
-                 join(pickDir, 'pick skin', 'pick skin.png'));
-    try {
-        const [chooser] = await Promise.all([
-            page.waitForFileChooser({ timeout: 10000 }),
-            page.click('#addfolder'),
-        ]);
-        await chooser.accept([join(pickDir, 'pick skin')]);
-        await new Promise((r) => setTimeout(r, 1200));
-        const picked = await page.evaluate(() => {
-            const card = document.querySelector('#skingrid .skinCard[data-skin-name="pick skin"]');
-            if (!card) return null;
-            return {
-                name: card.querySelector('.skinName').textContent,
-                preview: !!card.querySelector('img') || !!card.querySelector('canvas'),
-                download: card.querySelector('.skinDownload').getAttribute('title'),
-                toast: document.querySelector('#naerror-text').textContent,
-            };
-        });
-        picked && picked.preview
-            ? ok('"Add skin folder" loads a folder picked off disk (' + picked.name + ', preview drawn)')
-            : bad('the picked folder did not appear on the page: ' + JSON.stringify(picked));
-        // it is a session skin: reloading must drop it again (nothing written)
-        await page.reload({ waitUntil: 'load' });
-        await page.click('#header2');
-        await new Promise((r) => setTimeout(r, 800));
-        const stillThere = await page.$('#skingrid .skinCard[data-skin-name="pick skin"]');
-        stillThere === null
-            ? ok('the picked folder is session-only: a reload leaves the repo untouched')
-            : bad('a session skin survived a reload - did something write to disk?');
-    } catch (e) {
-        bad('the folder picker check failed: ' + e.message);
-    } finally {
-        rmSync(pickDir, { recursive: true, force: true });
-    }
 
     if (process.env.SHOTS) {
         const out = join(process.env.SHOTS, 'launcher-' + (label.startsWith('file') ? 'file' : 'http') + '.png');
@@ -536,24 +361,8 @@ async function driveLauncher(label, url) {
     return seen;
 }
 
-/* ---- optional server ---- */
-let srv = null, httpBase = null;
-const port = 8123;
-srv = spawn('python3', [join(ROOT, 'website', 'tools', 'serve.py'), '--port', String(port),
-    '--host', '127.0.0.1', '--no-browser'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
-for (let i = 0; i < 60; i++) {
-    try { const r = await fetch('http://127.0.0.1:' + port + '/'); if (r.status === 200) { httpBase = 'http://127.0.0.1:' + port + '/'; break; } }
-    catch { await new Promise((r) => setTimeout(r, 150)); }
-}
-head('Test server');
-if (httpBase) ok('tools/serve.py is up and answering on ' + httpBase);
-else bad('tools/serve.py never answered on port ' + port);
-
-/* ---- A: no server at all ---- */
+/* ---- the launcher, straight off disk: no server anywhere ---- */
 await driveLauncher('file:// (NO SERVER)', 'file://' + join(ROOT, 'index.html'));
-
-/* ---- B: with the optional server ---- */
-if (httpBase) await driveLauncher('http:// (optional server)', httpBase + 'index.html');
 
 /* ---- C: do the games actually load with no server? ---- */
 if (RUN_GAMES) {
@@ -596,7 +405,6 @@ if (RUN_GAMES) {
 }
 
 await browser.close();
-if (srv) srv.kill('SIGTERM');
 
 console.log('\n' + '='.repeat(58));
 console.log('  passed: ' + pass + '   failed: ' + fail);

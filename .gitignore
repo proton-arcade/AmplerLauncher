@@ -6,23 +6,6 @@ package-lock.json
 __pycache__/
 *.pyc
 
-# Local EaglerXServer runtime state - generated the first time the server runs.
-website/server/runtime/
-website/server/EaglerXServer.jar
-website/server/plugins.txt
-website/server/*.jar
-website/server/logs/
-website/server/world/
-website/server/world_nether/
-website/server/world_the_end/
-website/server/banned-*.json
-website/server/ops.json
-website/server/whitelist.json
-website/server/usercache.json
-
 # OS noise
 .DS_Store
 Thumbs.db
-
-# dev-only, never committed (matches the symlink form too)
-node_modules
