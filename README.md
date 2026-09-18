@@ -127,8 +127,11 @@ Five self-contained Eaglercraft builds (one HTML file each) under
 
 Singleplayer works with no server — the builds are the official Eaglercraft
 "offline download" single files, built to be opened directly, which is why
-double-clicking `index.html` is the normal way to run this launcher. The
-launcher itself is singleplayer-only; it ships nothing that needs hosting.
+double-clicking `index.html` is the normal way to run this launcher. One
+patch is applied to each of them: the built-in *"This file is from … — Game
+will launch in 5…"* countdown screen is disabled, so pressing Play boots
+straight into the game. The launcher itself is singleplayer-only; it ships
+nothing that needs hosting.
 
 ## Layout
 

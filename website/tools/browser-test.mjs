@@ -388,6 +388,14 @@ if (RUN_GAMES) {
             if (canvas) ok(c.id + ': booted off disk in ' + secs + 's, ' +
                            dims.count + ' canvas ' + dims.w + 'x' + dims.h);
             else bad(c.id + ': loaded but no sized <canvas> appeared within 20s');
+            // the canvas only exists once the boot script has run, which is
+            // also what removes the countdown screen - so by now it must be gone
+            const countdownGone = await page.evaluate(() =>
+                !document.getElementById('launch_countdown_screen') &&
+                !document.getElementById('locally'));
+            countdownGone
+                ? ok(c.id + ': boots straight in, no countdown screen')
+                : bad(c.id + ': a countdown screen is still up');
             if (process.env.SHOTS) {
                 const out = join(process.env.SHOTS, c.id + '.png');
                 await page.screenshot({ path: out }).catch(() => {});
