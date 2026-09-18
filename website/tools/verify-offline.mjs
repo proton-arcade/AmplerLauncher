@@ -714,6 +714,38 @@ if (SKINS.length === 0) {
             win.setTimeout = realSetTimeout;
             win.open = () => null;
             win.showView('play');
+
+            // the "save this name into user.js" button
+            {
+                let suggested = null, wrote = null;
+                win.showSaveFilePicker = (opts) => {
+                    suggested = opts.suggestedName;
+                    return Promise.resolve({
+                        createWritable: () => Promise.resolve({
+                            write: (x) => { wrote = String(x); },
+                            close: () => {}
+                        })
+                    });
+                };
+                win.showView('play');
+                d.getElementById('usersave').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+                await new Promise((r) => realSetTimeout(r, 20));
+                assert(suggested === 'user.js' && wrote && wrote.indexOf('window.AMPLER_USER') !== -1,
+                    'the save button offers user.js and writes the AMPLER_USER line into it');
+                assert(wrote.indexOf(JSON.stringify(d.getElementById('username').textContent)) !== -1,
+                    'the written file carries the current name (' +
+                    d.getElementById('username').textContent + ')');
+                delete win.showSaveFilePicker;
+
+                // a browser without the file API falls back to the clipboard
+                let copied = null;
+                win.navigator.clipboard = { writeText: (x) => { copied = x; return Promise.resolve(); } };
+                d.getElementById('usersave').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+                await new Promise((r) => realSetTimeout(r, 20));
+                assert(copied && copied.indexOf('window.AMPLER_USER') === 0,
+                    'without the file API, the line is copied ready to paste into user.js');
+                delete win.navigator.clipboard;
+            }
         }
 
         /* ---- the no-server path: boot from a file:// URL ---- */

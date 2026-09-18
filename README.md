@@ -40,6 +40,13 @@ window.AMPLER_USER = 'Steve';
 A name the browser does remember still wins over the file, so you can keep
 renaming in the launcher as usual wherever that works.
 
+Or skip the text editor: hover the name in the bar and press the **save
+icon**. Chrome and Edge open a Save dialog — pick `website/js/user.js` and
+the file is rewritten with the name on the spot. (That dialog is required,
+not a quirk: no page is ever allowed to write a file quietly.) Firefox and
+Safari don't have the file API, so there the button copies the one line
+instead — paste it into `user.js` and save.
+
 **Skins page** — the same background with a box per skin on top of it: the
 preview picture on top, the name in the bottom left corner and the download
 button in the bottom right. The search box in the head row filters the grid

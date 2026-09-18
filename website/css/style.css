@@ -549,6 +549,44 @@ pre {
     opacity: 1;
 }
 
+/* "save the name into user.js": same look as the edit pen, sit beside it */
+.userSaveButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: none;
+    border: none;
+    color: #9a9a9a;
+    opacity: 0;
+    transition: 0.2s;
+}
+
+.userSaveButton svg {
+    width: 1.1vw;
+    height: 1.1vw;
+    display: block;
+}
+
+.username:hover .userSaveButton {
+    opacity: 1;
+}
+
+.userSaveButton:hover {
+    cursor: pointer;
+    color: white;
+}
+
+.userSaveButton:focus-visible {
+    outline: #008542 solid 0.16vw;
+    outline-offset: 0.1vw;
+    opacity: 1;
+}
+
+.usernameEditing .userSaveButton {
+    display: none;
+}
+
 .usernameInput {
     display: none;
     width: 18vw;

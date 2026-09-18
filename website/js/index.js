@@ -314,6 +314,56 @@ function cancelUser() {
 }
 
 /* ------------------------------------------------------------------ *
+ * Saving the name into js/user.js
+ *
+ * Storage and cookies are wherever the browser allows, and some browsers
+ * drop both for a page opened off disk. The file is the one place that
+ * always survives - but no page may write a file quietly, so this asks:
+ * a native Save dialog opens, you pick website/js/user.js, and its code
+ * is replaced with the name as it stands. Browsers without the file
+ * system API (Firefox, Safari) fall back to copying the one line, ready
+ * to paste into the file by hand.
+ * ------------------------------------------------------------------ */
+
+function userFileText(name) {
+    return "// ===================================================================\n" +
+        "//  YOUR USERNAME - set by the launcher's save button on " +
+        new Date().toISOString().slice(0, 10) + "\n" +
+        "//  Change the name between the quotes (keep the quotes), save, and\n" +
+        "//  reload the launcher. This is the name that ALWAYS comes back, in\n" +
+        "//  every browser, because it is a file.\n" +
+        "// ===================================================================\n\n" +
+        "window.AMPLER_USER = " + JSON.stringify(name) + ";\n";
+}
+
+async function saveUserToFile() {
+    var name = state.username;
+    var text = userFileText(name);
+
+    if (typeof window.showSaveFilePicker === 'function') {
+        try {
+            var handle = await window.showSaveFilePicker({
+                suggestedName: 'user.js',
+                types: [{ description: 'JavaScript', accept: { 'text/javascript': ['.js'] } }]
+            });
+            var writable = await handle.createWritable();
+            await writable.write(text);
+            await writable.close();
+            return 'saved';
+        } catch (e) {
+            if (e && e.name === 'AbortError') return 'cancelled';   // dialog closed
+            // fall through to the clipboard copy
+        }
+    }
+
+    try {
+        await navigator.clipboard.writeText("window.AMPLER_USER = " + JSON.stringify(name) + ";");
+        return 'copied';
+    } catch (e) { /* no clipboard either - nothing to do */ }
+    return 'failed';
+}
+
+/* ------------------------------------------------------------------ *
  * Boot
  * ------------------------------------------------------------------ */
 
@@ -335,6 +385,18 @@ function init() {
     activateOnKey(el('header2'), function () { showView('skins'); });
     activateOnKey(el('drop'), function () { dropdowntoggle(); });
     activateOnKey(el('userbox'), function () { editUser(); });
+
+    // "save this name into user.js": the click must not open the rename
+    // field on the way through, and Enter/Space on the button writes.
+    el('usersave').addEventListener('click', function (event) {
+        event.stopPropagation();
+        closeDropdown();
+        saveUserToFile();
+    });
+    activateOnKey(el('usersave'), function (event) {
+        event.stopPropagation();
+        saveUserToFile();
+    });
 
     // The rows are offset in px from their measured height, so a resize
     // needs them measured again.
