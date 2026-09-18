@@ -24,7 +24,7 @@ import zlib
 U = 16
 GW, GH = 8, 10
 LETTER_W, LETTER_H = GW * U, GH * U
-GAP = 6                       # between letters inside a word (nearly touching)
+GAP = 4                       # between letters inside a word (nearly touching)
 ROW_GAP = 44                  # between the two words
 MARGIN_X = 48
 TOP = 36
@@ -117,12 +117,12 @@ def glyph_grid(letter, creeper_a):
 
 CARVE = (0, 0, 0, 0)              # carved away = transparent: the
                                   # background shows through the holes
-CRACK = (26, 26, 30, 255)         # crack lines on the stone
-EDGE_DARK = (156, 154, 161, 255)  # bottom / right bevel
-EDGE_LIGHT = (227, 225, 231, 255) # top bevel
-SHINE = (240, 238, 245, 255)      # a few bright chips
-STONES = [(200, 198, 206), (192, 190, 198), (208, 206, 213), (184, 182, 191)]
-REFLECT = (66, 65, 71)            # reflection silhouette (alpha fades out)
+CRACK = (24, 22, 25, 255)         # crack lines on the stone
+EDGE_DARK = (152, 145, 148, 255)  # bottom / right bevel
+EDGE_LIGHT = (232, 226, 228, 255) # top bevel
+SHINE = (243, 238, 239, 255)      # a few bright chips
+STONES = [(209, 201, 203), (215, 207, 209), (203, 195, 197), (219, 212, 213)]
+REFLECT = (58, 56, 60)            # reflection silhouette (alpha fades out)
 
 
 # Small crack shapes, in unit offsets from a corner.
@@ -156,7 +156,7 @@ def draw_letter(pix, ox, oy, letter, creeper_a, rng):
             base = shade[(c - c % 2, r - r % 2)]
             for y in range(y0, y0 + U):
                 for x in range(x0, x0 + U):
-                    j = rng.randint(-2, 2)
+                    j = rng.randint(-1, 1)
                     px = (max(0, min(255, base[0] + j)),
                           max(0, min(255, base[1] + j)),
                           max(0, min(255, base[2] + j + 2)), 255)
@@ -171,12 +171,12 @@ def draw_letter(pix, ox, oy, letter, creeper_a, rng):
             # thin seam under each 2x2 cell, so the stone reads as blocks
             if c % 2 == 1 and x0 + U < ox + LETTER_W:
                 for y in range(y0, y0 + U):
-                    pix[y][x0 + U - 1] = (px[0] - 10, px[1] - 10, px[2] - 9, 255)
+                    pix[y][x0 + U - 1] = (px[0] - 8, px[1] - 8, px[2] - 7, 255)
             if r % 2 == 1 and y0 + U < oy + LETTER_H:
                 for x in range(x0, x0 + U):
                     q = pix[y0 + U - 1][x]
-                    pix[y0 + U - 1][x] = (max(0, q[0] - 10), max(0, q[1] - 10),
-                                          max(0, q[2] - 9), 255)
+                    pix[y0 + U - 1][x] = (max(0, q[0] - 8), max(0, q[1] - 8),
+                                          max(0, q[2] - 7), 255)
 
     # a few jagged crack polylines: a 2px dark walk with a 1px light lip
     def stone_cells():
@@ -207,7 +207,7 @@ def draw_letter(pix, ox, oy, letter, creeper_a, rng):
                 pix[y][x] = CRACK
                 pix[y + 1][x] = CRACK
                 if pix[y - 1][x][3] == 255 and pix[y - 1][x] != CRACK:
-                    pix[y - 1][x] = (214, 212, 220, 255)
+                    pix[y - 1][x] = (224, 218, 220, 255)
 
     for _ in range(3):
         c, r = rng.choice(stone_cells())
@@ -222,15 +222,17 @@ def draw_reflection(pix, ox, oy, letter, creeper_a, height, rng):
     grid = glyph_grid(letter, creeper_a)
     for y in range(height):
         src_r = (GH - 1) - int(y * (GH * 0.62) / height)
-        alpha = max(0, 96 - int(y * 102 / height))
+        alpha = max(0, 120 - int(y * 126 / height))
         for c in range(GW):
             if not grid[src_r][c]:
                 continue
             x0 = ox + c * U
             for x in range(x0, x0 + U):
+                streak = 18 if (x % 7) in (0, 1) else 0     # glossy streaks
                 j = rng.randint(-2, 2)
+                a = max(0, alpha - streak)
                 pix[oy + y][x] = (REFLECT[0] + j, REFLECT[1] + j,
-                                  REFLECT[2] + j, alpha)
+                                  REFLECT[2] + j, a)
 
 
 def build():
