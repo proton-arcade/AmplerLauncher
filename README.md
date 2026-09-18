@@ -26,6 +26,19 @@ it. The bottom bar holds three things:
 | Play | opens the selected build in a new tab |
 | username | click it, type a name, press Enter — it is saved and shown on every page |
 
+Some browsers will not keep a name (or a chosen version) for a page opened
+straight off disk — they treat it as having no storage at all, or clear it on
+close, and the name snaps back to `Generic User`. If yours is one of them, set
+the name once in **`website/js/user.js`** and the launcher always boots with
+it:
+
+```js
+window.AMPLER_USER = 'Steve';
+```
+
+A name the browser does remember still wins over the file, so you can keep
+renaming in the launcher as usual wherever that works.
+
 **Skins page** — the same background with a box per skin on top of it: the
 preview picture on top, the name in the bottom left corner and the download
 button in the bottom right. The search box in the head row filters the grid
@@ -140,7 +153,7 @@ index.html              launcher page
 README.md               this file
 website/                everything else
   css/ fonts/ images/   launcher assets (font is self-hosted)
-  js/                   launcher code + the client and skin lists
+  js/                   launcher code + the client, user and skin lists
   mc/                   the five game builds
   skins/                one folder per skin (see above) + list.js
   tools/                bake-skins.py + the offline checks

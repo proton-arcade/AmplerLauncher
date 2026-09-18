@@ -438,6 +438,7 @@ if (SKINS.length === 0) {
         win.open = () => null;                       // no popups in test
         win.console.clear = () => {};
         win.eval(readFileSync(join(ROOT, 'website/js/clients.js'), 'utf8'));
+        win.eval(readFileSync(join(ROOT, 'website/js/user.js'), 'utf8'));
         win.eval(readFileSync(join(ROOT, 'website/js/skins.js'), 'utf8'));
         win.eval(readFileSync(join(ROOT, 'website/js/index.js'), 'utf8'));
         win.eval(readFileSync(join(ROOT, 'website/js/skinsview.js'), 'utf8'));
@@ -522,6 +523,18 @@ if (SKINS.length === 0) {
         win.setUsername('n'.repeat(40), false);
         assert(d.getElementById('username').textContent.length === 24,
             'a very long name is capped at 24 characters');
+
+        // the boot chain: a name the browser remembers beats js/user.js, and
+        // js/user.js beats the stock default
+        win.localStorage.setItem('ampler.offline.v2', JSON.stringify({ username: 'Saved User' }));
+        win.AMPLER_USER = 'File User';
+        win.init();
+        assert(d.getElementById('username').textContent === 'Saved User',
+            'a name the browser remembers beats js/user.js');
+        win.localStorage.removeItem('ampler.offline.v2');
+        win.init();
+        assert(d.getElementById('username').textContent === 'File User',
+            'js/user.js is the fallback when the browser remembers nothing');
         win.setUsername('Steve', true);
 
         /* ---- skins page ---- */
@@ -685,7 +698,10 @@ if (SKINS.length === 0) {
         let bootError = null;
         try {
             fwin.eval(readFileSync(join(ROOT, 'website/js/clients.js'), 'utf8'));
+            fwin.eval(readFileSync(join(ROOT, 'website/js/user.js'), 'utf8'));
             fwin.eval(readFileSync(join(ROOT, 'website/js/skins.js'), 'utf8'));
+            // an edited user.js: with no usable storage, the file is the name
+            fwin.window.AMPLER_USER = 'File User';
             fwin.eval(readFileSync(join(ROOT, 'website/js/index.js'), 'utf8'));
             fwin.eval(readFileSync(join(ROOT, 'website/js/skinsview.js'), 'utf8'));
         } catch (e) { bootError = e; }
@@ -700,8 +716,8 @@ if (SKINS.length === 0) {
         fwin.showView('skins');
         assert(fd.querySelectorAll('#skingrid .skinCard').length === SKINS.length,
             'file:// boot builds the skins grid too');
-        assert(fd.getElementById('username').textContent === 'Generic User',
-            'file:// boot falls back to "Generic User" when localStorage is unavailable');
+        assert(fd.getElementById('username').textContent === 'File User',
+            'file:// boot takes its name from js/user.js when storage is unavailable');
         assert(!fd.getElementById('filewarning'),
             'no stale file:// warning element left in the markup');
         assert(!readFileSync(join(ROOT, 'website/js/index.js'), 'utf8').includes('filewarning'),

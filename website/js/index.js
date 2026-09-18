@@ -51,10 +51,12 @@ function clientById(id) {
 }
 
 // Settings persistence. On a file:// origin the browser treats the page as an
-// opaque origin and window.localStorage throws SecurityError, so this silently
+// opaque origin and window.localStorage throws SecurityError (and some
+// browsers simply wipe site data when they close), so this silently
 // degrades: the launcher still works, it just will not remember your name or
-// your last version between sessions. Game worlds are unaffected - those are
-// handled by the game build itself, not by the launcher.
+// your last version between sessions. That is what js/user.js is for - put
+// your name there and every boot starts with it, storage or not. Game worlds
+// are unaffected - those are handled by the game build itself.
 function loadStore() {
     try {
         var raw = window.localStorage.getItem(STORE_KEY);
@@ -285,7 +287,9 @@ function init() {
     el('dropdownuparrow').innerHTML = SVG_DOWN;
 
     var saved = loadStore();
-    setUsername(saved.username || DEFAULT_USER, false);
+    // First choice: the name this browser remembers. Then the one set in
+    // js/user.js (a file always survives). Then the stock default.
+    setUsername(saved.username || window.AMPLER_USER || DEFAULT_USER, false);
 
     buildDropdown();
 
