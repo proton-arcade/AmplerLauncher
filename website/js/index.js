@@ -23,6 +23,8 @@ var SVG_DOWN = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" v
 var SVG_UP = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dropdownIcon"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 15l6 -6l6 6" /></svg>';
 
 var STORE_KEY = 'ampler.offline.v2';
+var COOKIE_KEY = 'ampler.offline.v2';
+var COOKIE_MAX_AGE = 365 * 24 * 60 * 60;   // one year, in seconds
 var DEFAULT_USER = 'Generic User';
 var MAX_USER = 24;
 
@@ -50,27 +52,59 @@ function clientById(id) {
     })[0] || null;
 }
 
-// Settings persistence. On a file:// origin the browser treats the page as an
-// opaque origin and window.localStorage throws SecurityError (and some
-// browsers simply wipe site data when they close), so this silently
-// degrades: the launcher still works, it just will not remember your name or
-// your last version between sessions. That is what js/user.js is for - put
-// your name there and every boot starts with it, storage or not. Game worlds
-// are unaffected - those are handled by the game build itself.
-function loadStore() {
+// Settings persistence - the name and the last version you picked are kept
+// in every place the browser allows, and read back from the first place
+// that has anything:
+//
+//   1. local storage - the normal place, used whenever the page has it;
+//   2. a cookie with a year-long expiry - some browsers refuse local
+//      storage to a page opened straight off disk but still keep its
+//      cookies, and the expiry date is what makes it survive the browser
+//      closing (a session cookie would not);
+//   3. js/user.js - a file always survives; put your name there once and
+//      every boot starts with it.
+//
+// On a browser that keeps neither storage nor cookies, the launcher still
+// works - js/user.js is the name that shows. Game worlds are unaffected -
+// those are handled by the game build itself, not by the launcher.
+function readCookie(name) {
     try {
-        var raw = window.localStorage.getItem(STORE_KEY);
-        if (raw) return JSON.parse(raw);
+        var parts = document.cookie ? document.cookie.split(';') : [];
+        for (var i = 0; i < parts.length; i++) {
+            var kv = parts[i].replace(/^\s+/, '');
+            var eq = kv.indexOf('=');
+            if (eq > 0 && kv.slice(0, eq) === name) {
+                return decodeURIComponent(kv.slice(eq + 1));
+            }
+        }
+    } catch (e) { /* cookies unavailable */ }
+    return null;
+}
+
+function loadStore() {
+    var raw = null;
+    try {
+        raw = window.localStorage.getItem(STORE_KEY);
     } catch (e) { /* opaque origin / private mode / storage disabled */ }
+    if (!raw) raw = readCookie(COOKIE_KEY);
+    if (raw) {
+        try { return JSON.parse(raw); } catch (e) { /* corrupt - ignore */ }
+    }
     return {};
 }
 
 function saveStore(patch) {
+    var cur = loadStore();
+    for (var k in patch) cur[k] = patch[k];
+    var text = JSON.stringify(cur);
     try {
-        var cur = loadStore();
-        for (var k in patch) cur[k] = patch[k];
-        window.localStorage.setItem(STORE_KEY, JSON.stringify(cur));
-    } catch (e) { /* non-fatal */ }
+        window.localStorage.setItem(STORE_KEY, text);
+    } catch (e) { /* storage refused - the cookie may still take it */ }
+    try {
+        document.cookie = COOKIE_KEY + '=' + encodeURIComponent(text) +
+            '; expires=' + new Date(Date.now() + COOKIE_MAX_AGE * 1000).toUTCString() +
+            '; path=/';
+    } catch (e) { /* cookies refused - storage may still have it */ }
 }
 
 /* The bar is made of divs and list items, which a keyboard cannot reach on its

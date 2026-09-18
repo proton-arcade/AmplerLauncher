@@ -532,9 +532,25 @@ if (SKINS.length === 0) {
         assert(d.getElementById('username').textContent === 'Saved User',
             'a name the browser remembers beats js/user.js');
         win.localStorage.removeItem('ampler.offline.v2');
+        // the cookie has to go too: an earlier save put the name in it, and
+        // the cookie layer is exactly what is under test here
+        d.cookie = 'ampler.offline.v2=; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         win.init();
         assert(d.getElementById('username').textContent === 'File User',
             'js/user.js is the fallback when the browser remembers nothing');
+
+        // the cookie layer: a browser that keeps cookies but not storage
+        d.cookie = 'ampler.offline.v2=' + encodeURIComponent(JSON.stringify({ username: 'Cookie User' }));
+        win.init();
+        assert(d.getElementById('username').textContent === 'Cookie User',
+            'the name comes back from a cookie when storage has nothing');
+        d.cookie = 'ampler.offline.v2=; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        win.setUsername('Cookie Save', true);
+        assert(d.cookie.indexOf('ampler.offline.v2=') !== -1,
+            'saving the name also writes the year-long cookie');
+        win.init();
+        assert(d.getElementById('username').textContent === 'Cookie Save',
+            'a freshly booted page reads the name back out of the cookie');
         win.setUsername('Steve', true);
 
         /* ---- skins page ---- */

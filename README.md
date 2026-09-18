@@ -26,11 +26,12 @@ it. The bottom bar holds three things:
 | Play | opens the selected build in a new tab |
 | username | click it, type a name, press Enter — it is saved and shown on every page |
 
-Some browsers will not keep a name (or a chosen version) for a page opened
-straight off disk — they treat it as having no storage at all, or clear it on
-close, and the name snaps back to `Generic User`. If yours is one of them, set
-the name once in **`website/js/user.js`** and the launcher always boots with
-it:
+The launcher saves your name (and your last version) in local storage and in
+a year-long cookie, wherever the browser allows. Some browsers will not keep
+either for a page opened straight off disk — they treat it as having no
+storage at all, or clear it on close, and the name snaps back to
+`Generic User`. If yours is one of them, set the name once in
+**`website/js/user.js`** and the launcher always boots with it:
 
 ```js
 window.AMPLER_USER = 'Steve';
